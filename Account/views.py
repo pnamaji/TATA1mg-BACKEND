@@ -20,7 +20,7 @@ from decouple import config
 
 account_sid = config('TWILIO_ACCOUNT_SID')  # Replace with your Account SID
 auth_token =  config('TWILIO_AUTH_TOKEN')    # Replace with your Auth Token
-twilio_phone_number = '+14806855921'  # Replace with your Twilio phone number
+twilio_phone_number = config('TWILIO_PHONE_NO')  # Replace with your Twilio phone number
 
 client = Client(account_sid, auth_token)
 
