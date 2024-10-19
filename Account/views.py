@@ -16,10 +16,10 @@ from twilio.rest import Client
 import json, random, string, logging
 from .models import UserData, LoginHistory
 from Account.serializers import *
+from decouple import config
 
-
-account_sid = 'AC517ca9863822b144521cb743ca0eacc1'  # Replace with your Account SID
-auth_token =  'd715da9b6e2b0d79f3ab8e7c2309bd18'    # Replace with your Auth Token
+account_sid = config('TWILIO_ACCOUNT_SID')  # Replace with your Account SID
+auth_token =  config('TWILIO_AUTH_TOKEN')    # Replace with your Auth Token
 twilio_phone_number = '+14806855921'  # Replace with your Twilio phone number
 
 client = Client(account_sid, auth_token)
