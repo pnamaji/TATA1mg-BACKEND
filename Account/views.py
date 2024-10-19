@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken, BlacklistedToken, AccessToken
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
@@ -17,6 +17,7 @@ import json, random, string, logging
 from .models import UserData, LoginHistory
 from Account.serializers import *
 from decouple import config
+import logging
 
 account_sid = config('TWILIO_ACCOUNT_SID')  # Replace with your Account SID
 auth_token =  config('TWILIO_AUTH_TOKEN')    # Replace with your Auth Token
@@ -25,7 +26,6 @@ twilio_phone_number = config('TWILIO_PHONE_NO')  # Replace with your Twilio phon
 client = Client(account_sid, auth_token)
 
 # Create your views here.
-
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
@@ -39,19 +39,24 @@ class LogoutView(APIView):
                 login_history.logout_time = timezone.now()
                 login_history.save()
 
-            # Get refresh token from request data
-            refresh_token = request.data.get("refresh_token")
-            if refresh_token is None:
-                return Response({"error": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
+            # Get the refresh token from the request
+            refresh_token = request.data.get('refresh_token')
+            if not refresh_token:
+                return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Blacklist the refresh token to log the user out
-            token = RefreshToken(refresh_token)
-            token.blacklist()
+            # Validate the refresh token and get the corresponding outstanding token
+            outstanding_token = OutstandingToken.objects.filter(token=refresh_token).first()
+            if not outstanding_token:
+                return Response({'error': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Blacklist the token using the OutstandingToken instance
+            BlacklistedToken.objects.create(token=outstanding_token)
 
             return Response({"message": "Successfully logged out"}, status=status.HTTP_205_RESET_CONTENT)
         
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
         
 class LoginWithEmail(APIView):
     permission_classes = [AllowAny]
@@ -84,6 +89,53 @@ class LoginWithEmail(APIView):
                 return JsonResponse({'error': 'Email Does not exists'}, status=400)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid Json format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+        
+class ResendOTPForEmail(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            # Check if the session already has an OTP
+            session_otp = request.session.get('otp')
+            session_otp_expiry_time = request.session.get('otp_expiry_time')
+            
+            # Check if there's already an OTP and if it's not expired
+            if session_otp and session_otp_expiry_time:
+                otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
+                if timezone.now() < otp_expiry_time:
+                    # if OTP is valid, reuse the existing OTP
+                    otp_value = session_otp
+                else:
+                    # OTP is expired, generate a new one
+                    otp_value = ''.join(random.choices(string.digits, k=5))
+                    otp_expiry_time = timezone.now() + timedelta(minutes=5)
+                    request.session['otp'] = otp_value
+                    request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+                    
+            else:
+                # No OTP found or session expired, generate a new OTP
+                otp_value = ''.join(random.choices(string.digits, k=5))
+                otp_sms = ''.join(random.choices(string.digits, k=5))
+                otp_expiry_time = timezone.now() + timedelta(minutes=5)
+                request.session['otp'] = otp_value
+                request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+
+            # Send OTP email
+            email = request.session.get('email')
+            if not email:
+                return JsonResponse({'error': 'Email not found in session'}, status=400)
+            
+            send_mail(
+                'OTP',
+                f'OTP is {otp_value}. Do not share this with anyone.',
+                settings.DEFAULT_FROM_EMAIL,
+                [email]
+            )
+            
+            return JsonResponse({'message': 'OTP resent Successfully. Please check your email.'})
+            
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500) 
         
@@ -136,11 +188,7 @@ class VerifyOTPForEmail(APIView):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
                 
-                
-            
-            
-                
-        
+
 class LoginWithSMS(APIView):
     permission_classes = [AllowAny]
     
@@ -151,144 +199,22 @@ class LoginWithSMS(APIView):
             
             mobile_number = data.get('mobile_number')
             
-            if UserData.objects.filter(mobile_number=mobile_number).exists():
-                
-                # Generate OTP for SMS
-                otp_sms = ''.join(random.choices(string.digits, k=5))
-                
-                print(otp_sms)
-            
-                # Set OTP expiration time (5 minutes from now)
-                otp_expiry_time = timezone.now() + timedelta(minutes=5)
-                
-                request.session['otp_sms'] = otp_sms
-                request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
-                
-                try:
-                    message = client.messages.create(
-                        body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
-                        from_=twilio_phone_number,
-                        to=mobile_number
-                    )
-                    print("Successfully")
-                except Exception as e:
-                    return JsonResponse({'error': str(e)}, status=500)
-                
-                return JsonResponse({'message': 'OTP sent. Please Enter OTP to verify your account'}, status=200)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid Json format'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500) 
-            
-
-class VerifyOTPForSMS(APIView):
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        try:
-            data = json.loads(request.body)
-                
-            otp = data.get('otp')
-            session_otp = request.session.get('otp_sms')
-            session_otp_expiry_time = request.session.get('otp_expiry_time')
-            
-            if not session_otp or not session_otp_expiry_time:
-                return JsonResponse({'error': 'OTP not found'}, status=400)
-
-            # Convert session_otp_expiry_time back to a datetime object
-            otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
-
-            # Check if OTP is expired
-            if timezone.now() > otp_expiry_time:
-                return JsonResponse({'error': 'OTP has expired'}, status=400)
-            
-            if otp == session_otp:
-                
-                mobile_number = request.session.get('mobile_number')
-                
-                mobile_number_user = UserData.objects.get(mobile_number=mobile_number)
-                user = mobile_number_user.user
-                
-                LoginHistory.objects.create(
-                        user=user,
-                        ip_address=request.META.get('REMOTE_ADDR'),
-                        login_time=timezone.now()
-                    )
-                
-                # Create tokens
-                refresh = RefreshToken.for_user(user)
-                access_token = str(refresh.access_token)
-                
-                return JsonResponse({
-                    'refresh_token': str(refresh),
-                    'access_token': access_token
-                    }, status=200)
-            else:
-                return JsonResponse({'error': 'Invalid OTP'}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-        
-        
-
-
-class SignUp(APIView):
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        try:
-            
-            data = json.loads(request.body)
-            
-            email = data.get('email')
-            mobile_number = data.get('mobile_number')
-            
-            # Print the debug info (for development use only)
-            print(email, mobile_number)
-            
-            #  Ensure email or mobile_number doesn't already exist
-            if UserData.objects.filter(email=email).exists():
-                return JsonResponse({'error': 'Email already exists'}, status=400)
-            if UserData.objects.filter(mobile_number=mobile_number).exists():
-                return JsonResponse({'error': 'Mobile number already exists'}, status=400)
-            
-            # Ensure all required fields are provided 
-            if not ( email and mobile_number):
-                return JsonResponse({'error': 'All fields are required'}, status=400)
-            
-            # Generate OTP for email
-            otp_value = ''.join(random.choices(string.digits, k=5))
-            
             # Generate OTP for SMS
             otp_sms = ''.join(random.choices(string.digits, k=5))
             
             print(otp_sms)
-            
+        
             # Set OTP expiration time (5 minutes from now)
             otp_expiry_time = timezone.now() + timedelta(minutes=5)
             
-            print("working")
-            
-            # Store Data in Session (avoid storing sensitive info like passwords)
-            request.session['email'] = email
-            request.session['mobile_number'] = mobile_number
-            request.session['otp'] = otp_value
             request.session['otp_sms'] = otp_sms
             request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+            request.session['mobile_number'] = mobile_number
             
-            # Send OTP email
-            try:
-                send_mail(
-                    'OTP',
-                    f'Your OTP is {otp_value}. Do not share this with anyone.',
-                    settings.DEFAULT_FROM_EMAIL,
-                    [email],
-                )
-                print("Email sent successfully")
-            except Exception as e:
-                print(f"Failed to send email: {e}")
-                return JsonResponse({'error': 'Failed to send OTP via email'}, status=500)
+            # If the mobile number doesn't start with +91, add it
+            if not mobile_number.startswith('+91'):
+                mobile_number = '+91' + mobile_number
+            
             try:
                 message = client.messages.create(
                     body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
@@ -297,66 +223,53 @@ class SignUp(APIView):
                 )
                 print("Successfully")
             except Exception as e:
-                return JsonResponse({'error': str(e)}, status=500)
+                return Response({'error': str(e)}, status=500)
             
-            return JsonResponse({'message': 'OTP sent. Please Enter OTP to verify your account'}, status=200)
-        
+            return Response({'message': 'OTP sent. Please Enter OTP to verify your account'}, status=200)
+                
+                
         except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid Json format'}, status=400)
+            return Response({'error': 'Invalid Json format'}, status=400)
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return Response({'error': str(e)}, status=500) 
         
-        
-class ResendOTP(APIView):
+class ResendOTPForSMS(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
         try:
             # Check if the session already has an OTP
             session_otp_sms = request.session.get('otp_sms')
-            session_otp = request.session.get('otp')
             session_otp_expiry_time = request.session.get('otp_expiry_time')
             
             # Check if there's already an OTP and if it's not expired
-            if session_otp and session_otp_expiry_time:
+            if session_otp_sms and session_otp_expiry_time:
                 otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
                 if timezone.now() < otp_expiry_time:
                     # if OTP is valid, reuse the existing OTP
-                    otp_value = session_otp
                     otp_sms = session_otp_sms
+
                 else:
                     # OTP is expired, generate a new one
-                    otp_value = ''.join(random.choices(string.digits, k=5))
                     otp_sms = ''.join(random.choices(string.digits, k=5))
                     otp_expiry_time = timezone.now() + timedelta(minutes=5)
-                    request.session['otp'] = otp_value
                     request.session['otp_sms'] = otp_sms
                     request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
                     
             else:
                 # No OTP found or session expired, generate a new OTP
-                otp_value = ''.join(random.choices(string.digits, k=5))
                 otp_sms = ''.join(random.choices(string.digits, k=5))
                 otp_expiry_time = timezone.now() + timedelta(minutes=5)
-                request.session['otp'] = otp_value
                 request.session['otp_sms'] = otp_sms
                 request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
-
-            # Send OTP email
-            email = request.session.get('email')
-            if not email:
-                return JsonResponse({'error': 'Email not found in session'}, status=400)
-            
-            send_mail(
-                'OTP',
-                f'OTP is {otp_value}. Do not share this with anyone.',
-                settings.DEFAULT_FROM_EMAIL,
-                [email]
-            )
             
             mobile_number = request.session.get('mobile_number')
             if not mobile_number:
                 return JsonResponse({'error': "Mobile Number not found in session."}, status=400)
+            
+            # If the mobile number doesn't start with +91, add it
+            if not mobile_number.startswith('+91'):
+                mobile_number = '+91' + mobile_number
             
             message = client.messages.create(
                     body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
@@ -369,24 +282,21 @@ class ResendOTP(APIView):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
         
-        
-class verify_otp_view(APIView):
+class VerifyOTPForSMS(APIView):
     permission_classes = [AllowAny]
-    # permission_classes = [IsAuthenticated]
-       
+    
     def post(self, request):
         try:
-            # Load the incoming data as JSON
             data = json.loads(request.body)
-
-            otp_value = data.get('otp')
-            otp_sms = data.get('otp_sms')
-            session_sms = request.session.get('otp_sms')
-            session_otp = request.session.get('otp')
+            
+            # Extract OTP and other session data
+            otp = data.get('otp')
+            session_otp = request.session.get('otp_sms')
             session_otp_expiry_time = request.session.get('otp_expiry_time')
+            mobile_number = request.session.get('mobile_number')
 
-            if not session_otp or not session_otp_expiry_time:
-                return JsonResponse({'error': 'OTP not found'}, status=400)
+            if not session_otp or not session_otp_expiry_time or not mobile_number:
+                return JsonResponse({'error': 'OTP or mobile number not found'}, status=400)
 
             # Convert session_otp_expiry_time back to a datetime object
             otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
@@ -394,47 +304,100 @@ class verify_otp_view(APIView):
             # Check if OTP is expired
             if timezone.now() > otp_expiry_time:
                 return JsonResponse({'error': 'OTP has expired'}, status=400)
+            
+            # Verify the OTP
+            if otp == session_otp:
+                # Check if the user with the given mobile number exists
+                try:
+                    mobile_number_user = UserData.objects.get(mobile_number=mobile_number)
+                    user = mobile_number_user.user
 
-            # Check if OTP matches
-            if otp_value == session_otp:
-                if otp_sms == session_sms:
-                    email = request.session['email']
-                    mobile_number = request.session['mobile_number']
-                    
-                    # Create User
-                    user = User.objects.create_user(username=email, email=email)
-                    
-                    user_data = UserData(user=user, email=email, mobile_number=mobile_number)
-                    user_data.save()
-                    
-                    serializer = UserDataSerializer(user_data)
-
-                    # Explicitly set the backend (if you're using a custom backend, specify it here)
-                    user.backend = 'django.contrib.auth.backends.ModelBackend'
-                    
+                    # If user exists, log them in
                     LoginHistory.objects.create(
                         user=user,
                         ip_address=request.META.get('REMOTE_ADDR'),
                         login_time=timezone.now()
                     )
-                    
+
+                    # Create tokens
                     refresh = RefreshToken.for_user(user)
                     access_token = str(refresh.access_token)
 
                     return JsonResponse({
                         'refresh_token': str(refresh),
-                        'access_token': access_token
-                        })
-                    
-                    # Optionally log the user in
-                    # login(request, user)  # Uncomment this if you want to log the user in
-                    
-                    # Return a success message along with user data
-                    # return JsonResponse({'success': True, 'message': 'OTP verified', 'user_id': user.id})
-                else:
-                    return JsonResponse({'error': 'Invalid SMS OTP'}, status=400)
+                        'access_token': access_token,
+                        'message': 'Login successful'
+                    }, status=200)
+                
+                except UserData.DoesNotExist:
+                    # If the user does not exist, store the mobile number and OTP in the session for registration
+                    request.session['mobile_number'] = mobile_number
+                    request.session['otp_sms'] = otp
+
+                    return JsonResponse({
+                        'message': 'User does not exist. Please complete the registration.',
+                        'status': 'new_user'
+                    }, status=200)
+            
             else:
-                return JsonResponse({'error': 'Invalid email OTP'}, status=400)
+                return JsonResponse({'error': 'Invalid OTP'}, status=400)
+        
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            # Ensure that an error response is returned in case of an exception
+            return JsonResponse({'error': str(e)}, status=500)
+        
+
+class SignInView(APIView):
+    permission_classes = [AllowAny]
+       
+    def post(self, request):
+        try:
+            # Load the incoming data as JSON
+            data = json.loads(request.body)
+            
+            email = data.get('email')
+            location = data.get('location')
+            
+            if not email or not location:
+                return Response({'error': 'Email and location Required'})
+            
+            mobile_number = request.session['mobile_number']
+            
+            if not mobile_number:
+                return Response({'error': 'Mobile number not found'})
+            
+            # Create User
+            user = User.objects.create_user(username=email, email=email)
+            
+            user_data = UserData(user=user, email=email, mobile_number=mobile_number)
+            user_data.save()
+            
+            serializer = UserDataSerializer(user_data)
+            
+            user_profile = UserProfile(user=user, location=location)
+            user_profile.save()
+            
+            serializer = UserProfileSerializer(user_profile)
+
+            # Explicitly set the backend (if you're using a custom backend, specify it here)
+            user.backend = 'django.contrib.auth.backends.ModelBackend'
+            
+            LoginHistory.objects.create(
+                user=user,
+                ip_address=request.META.get('REMOTE_ADDR'),
+                login_time=timezone.now()
+            )
+            
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            return JsonResponse({
+                'refresh_token': str(refresh),
+                'access_token': access_token
+                })
+                 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
         except Exception as e:
