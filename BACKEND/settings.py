@@ -71,6 +71,7 @@ MIDDLEWARE = [
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -96,10 +97,30 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'BACKEND.wsgi.application'
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "staticfiles"),
+]
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+SITE_ID = 1 
+
 # AUTH_USER_MODEL = 'Account.UserData'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'your_db_name',
+#         'USER': 'your_username',
+#         'PASSWORD': 'your_password',
+#         'HOST': 'localhost',  # Or the remote server IP if PostgreSQL is running on a different machine
+#         'PORT': '5432',        # Default PostgreSQL port
+#     }
+# }
 
 DATABASES = {
     'default': {

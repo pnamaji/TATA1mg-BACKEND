@@ -76,6 +76,7 @@ class LoginWithEmail(APIView):
                 otp_expiry_time = timezone.now() + timedelta(minutes=5)
                 
                 request.session['otp'] = otp
+                request.session['email'] = email
                 request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
                 
                 send_mail(
@@ -164,8 +165,11 @@ class VerifyOTPForEmail(APIView):
                 
                 email = request.session.get('email')
                 
-                email_user = UserData.objects.get(email=email)
-                user = email_user.user
+                # Ensure that the user exists
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    return JsonResponse({'error': 'User matching query does not exist.'}, status=400)
                 
                 LoginHistory.objects.create(
                         user=user,
@@ -213,13 +217,13 @@ class LoginWithSMS(APIView):
             
             # If the mobile number doesn't start with +91, add it
             if not mobile_number.startswith('+91'):
-                mobile_number = '+91' + mobile_number
+                mobile_numbers = '+91' + mobile_number
             
             try:
                 message = client.messages.create(
                     body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
                     from_=twilio_phone_number,
-                    to=mobile_number
+                    to=mobile_numbers
                 )
                 print("Successfully")
             except Exception as e:
@@ -277,7 +281,7 @@ class ResendOTPForSMS(APIView):
                     to=mobile_number
                 )
             
-            return JsonResponse({'message': 'OTP resent Successfully. Please check your email.'})
+            return JsonResponse({'message': 'OTP resent Successfully. Please check your Mobile.'})
             
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
