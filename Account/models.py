@@ -1,9 +1,11 @@
 from django.db import models
+from django.urls import reverse
 import uuid
 from django.utils import timezone
 import random
 import os
 from django.utils.html import format_html
+from django.utils.text import slugify
 import string
 from django.contrib.auth import get_user_model
 import uuid
@@ -184,10 +186,6 @@ def file_upload_to_products(instance, filename):
     ext = filename.split('.')[-1]
     new_filename = f"{instance.product.name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
     return os.path.join('product_images/', new_filename)
-
-def generate_sku(instance):
-    # Example: Generate SKU based on brand, category, and a UUID for uniqueness
-    return f"{instance.brand.name[:3].upper()}-{instance.category.id}-{uuid.uuid4().hex[:8]}"
     
 
 # Product Model linked to Category
@@ -198,6 +196,7 @@ class Product(models.Model):
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
     description = models.TextField()
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    ad = models.BooleanField(blank=True, null=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     discounted_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     prescription_required = models.BooleanField(null=True, blank=True, default=False)
@@ -205,6 +204,7 @@ class Product(models.Model):
     sku = models.CharField(max_length=100, unique=True, blank=True, editable=False)  # SKU field
     expiry_date = models.DateField(blank=True, null=True)
     delivery_days = models.IntegerField(default=3)  # Admin se set hone wala field
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
@@ -219,7 +219,7 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         # Generate SKU if it's not already set
         if not self.sku:
-            self.sku = generate_sku(self)  # Generate SKU based on instance attributes
+            self.sku = self.generate_unique_sku()  # Generate SKU based on instance attributes
         
         if self.selling_price and self.discount_percentage:
             # Calculate the discounted price based on percentage
@@ -235,6 +235,21 @@ class Product(models.Model):
         delivery_date = today + timedelta(days=self.delivery_days)
         return delivery_date
     
+    def generate_unique_sku(self):
+        base_sku = slugify(self.name)
+        unique_sku = base_sku
+        num = 1
+        
+        # Check if SKU exists, if it does, keep adding numbers to make it unique
+        while Product.objects.filter(sku=unique_sku).exists():
+            unique_sku = f"{base_sku}-{random.randint(1000, 9999)}"
+            num += 1
+        
+        return unique_sku
+    
+    def get_share_link(self):
+        return f"/Products/{self.sku}"
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to=file_upload_to_products)

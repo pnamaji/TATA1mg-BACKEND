@@ -4,23 +4,73 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from datetime import timedelta
 from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken, BlacklistedToken, AccessToken
 from rest_framework.permissions import AllowAny
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from twilio.rest import Client
 import json, random, string, logging
-from .models import UserData, LoginHistory
+from .models import UserData, LoginHistory, Product
+from Account.serializers import ProductSerializer
 from Account.serializers import *
 from decouple import config
 import logging
 import jwt
 import datetime
 
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    # Custom action to get TypesOfCategory by Category
+    @action(detail=True, methods=['get'])
+    def types(self, request, pk=None):
+        try:
+            # Retrieve the category by primary key (ID) or add additional filtering as needed
+            category = self.get_object()  # will automatically use pk
+            # Filter TypesOfCategory based on this category
+            types_of_category = TypesOfCategory.objects.filter(category=category)
+            serializer = TypeOFCategorySerializer(types_of_category, many=True)
+            return Response(serializer.data)
+        except Category.DoesNotExist:
+            return Response({'error': 'Category not found'}, status=404)
+        
+class TypeOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = TypeOFCategorySerializer
+
+    def get_queryset(self):
+        category_id = self.kwargs.get('category_id')
+        return TypesOfCategory.objects.filter(category_id=category_id)
+    
+class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        type_of_category_id = self.kwargs.get('category_id')
+        return Product.objects.filter(category_id=type_of_category_id)
+
+class BrandViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+
+class ProductDetailAPIView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request, sku):
+        product = get_object_or_404(Product, sku=sku)
+        # Pass the request context to the serializer
+        serializer = ProductSerializer(product, context={'request': request})
+        return Response(serializer.data)
+
+class ProductAPIView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request):
+        pass
 
 account_sid = config('TWILIO_ACCOUNT_SID')  # Replace with your Account SID
 auth_token =  config('TWILIO_AUTH_TOKEN')    # Replace with your Auth Token
@@ -77,10 +127,25 @@ class LoginWithEmail(APIView):
                 
                 # Set OTP expiration time (5 minutes from now)
                 otp_expiry_time = timezone.now() + timedelta(minutes=5)
+
+                # Token Expiration set to 1 hour
+                token_expiry_time = timezone.now() + timedelta(hours=5)
+
+                temp_token = jwt.encode(
+                {
+                    'email': email,
+                    'otp': otp,
+                    'exp': int(token_expiry_time.timestamp()),     # Convert to integer timestamp
+                    'expotp': int(otp_expiry_time.timestamp())      # Convert to integer timestamp
+                    
+                },
+                settings.SECRET_KEY,
+                algorithm='HS256'
+            )
                 
-                request.session['otp'] = otp
-                request.session['email'] = email
-                request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+                # request.session['otp'] = otp
+                # request.session['email'] = email
+                # request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
                 
                 send_mail(
                     "OTP",
@@ -88,7 +153,9 @@ class LoginWithEmail(APIView):
                     settings.DEFAULT_FROM_EMAIL,
                     [email],
                 )
-                return Response({'message': 'OTP Sent Successfully'})
+                return Response({'message': 'OTP Sent Successfully',
+                                 'temp_token': temp_token  # Return temp token with OTP details
+                                 })
             else:
                 return JsonResponse({'error': 'Email Does not exists'}, status=400)
         except json.JSONDecodeError:
@@ -152,21 +219,43 @@ class VerifyOTPForEmail(APIView):
             data = json.loads(request.body)
             
             otp = data.get('otp')
-            session_otp = request.session.get('otp')
-            session_otp_expiry_time = request.session.get('otp_expiry_time')
+            temp_token = data.get('temp_token')
+
+            # Decode the temporary token
+            try:
+                payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
+                email = payload['email']
+                session_otp = payload['otp']
+                session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
+                session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
+
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({'error': 'Temporary token expired'}, status=400)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=400)
+            except Exception as e:
+                return JsonResponse({'error': str(e)}, status=500)
             
-            if not session_otp or not session_otp_expiry_time:
-                return Response({'error': 'Session Data not fount'}, status=400)
+            # Check if OTP is expired
+            if timezone.now() > session_otp_expiry_time:
+                return JsonResponse({'error': 'OTP has expired'}, status=400)
+
+
+            # session_otp = request.session.get('otp')
+            # session_otp_expiry_time = request.session.get('otp_expiry_time')
+            
+            # if not session_otp or not session_otp_expiry_time:
+            #     return Response({'error': 'Session Data not fount'}, status=400)
             
             # Convert session_otp_expiry_time back to a datetime object
-            otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
+            # otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
             
-            if timezone.now() > otp_expiry_time:
-                return JsonResponse({'error': 'OTP has expired'}, status=400)
+            # if timezone.now() > otp_expiry_time:
+            #     return JsonResponse({'error': 'OTP has expired'}, status=400)
             
             if otp == session_otp:
                 
-                email = request.session.get('email')
+                # email = request.session.get('email')
                 
                 # Ensure that the user exists
                 try:
@@ -264,9 +353,25 @@ class ResendOTPForSMS(APIView):
     
     def post(self, request):
         try:
+            data = json.loads(request.body)
+
+            temp_token = data.get('temp_token')
+
+            try:
+                payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
+                mobile_number = payload['mobile_number']
+                session_otp_sms = payload['otp']
+                session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
+                # session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
+
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({'error': 'Temporary token expired'}, status=400)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=400)
+
             # Check if the session already has an OTP
-            session_otp_sms = request.session.get('otp_sms')
-            session_otp_expiry_time = request.session.get('otp_expiry_time')
+            # session_otp_sms = request.session.get('otp_sms')
+            # session_otp_expiry_time = request.session.get('otp_expiry_time')
             
             # Check if there's already an OTP and if it's not expired
             if session_otp_sms and session_otp_expiry_time:
