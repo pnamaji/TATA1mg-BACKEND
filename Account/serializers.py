@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from Account.models import UserData, UserProfile
+from Account.models import UserData, UserProfile, Product
 
 class UserDataSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,3 +17,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_is_owner(self, obj):
         request = self.context.get('request')
         return obj.user == request.user  # True if the logged-in user is the owner
+    
+class ProductSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Product
+        fields = ['category', 'name', 'brand', 'description', 'selling_price', 'discounted_price', ]

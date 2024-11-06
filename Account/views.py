@@ -18,6 +18,9 @@ from .models import UserData, LoginHistory
 from Account.serializers import *
 from decouple import config
 import logging
+import jwt
+import datetime
+
 
 account_sid = config('TWILIO_ACCOUNT_SID')  # Replace with your Account SID
 auth_token =  config('TWILIO_AUTH_TOKEN')    # Replace with your Auth Token
@@ -210,14 +213,31 @@ class LoginWithSMS(APIView):
         
             # Set OTP expiration time (5 minutes from now)
             otp_expiry_time = timezone.now() + timedelta(minutes=5)
+            # otp_expiry_time = timezone.make_aware(otp_expiry_time)  # Ensure it's timezone-aware
+
+            # Token expiration set to 1 hour
+            token_expiry_time = timezone.now() + timedelta(hours=5)
             
-            request.session['otp_sms'] = otp_sms
-            request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
-            request.session['mobile_number'] = mobile_number
+            # request.session['otp_sms'] = otp_sms
+            # request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+            # request.session['mobile_number'] = mobile_number
             
             # If the mobile number doesn't start with +91, add it
             if not mobile_number.startswith('+91'):
                 mobile_numbers = '+91' + mobile_number
+
+            # Create a temporary token containing the mobile number and OTP
+            temp_token = jwt.encode(
+                {
+                    'mobile_number': mobile_number,
+                    'otp': otp_sms,
+                    'exp': token_expiry_time.timestamp(),
+                    'expotp': otp_expiry_time.timestamp()
+                    
+                },
+                settings.SECRET_KEY,
+                algorithm='HS256'
+            )
             
             try:
                 message = client.messages.create(
@@ -229,7 +249,9 @@ class LoginWithSMS(APIView):
             except Exception as e:
                 return Response({'error': str(e)}, status=500)
             
-            return Response({'message': 'OTP sent. Please Enter OTP to verify your account'}, status=200)
+            return Response({'message': 'OTP sent. Please Enter OTP to verify your account',
+                             'temp_token': temp_token  # Return temp token with OTP details
+                             }, status=200)
                 
                 
         except json.JSONDecodeError:
@@ -295,19 +317,37 @@ class VerifyOTPForSMS(APIView):
             
             # Extract OTP and other session data
             otp = data.get('otp')
-            session_otp = request.session.get('otp_sms')
-            session_otp_expiry_time = request.session.get('otp_expiry_time')
-            mobile_number = request.session.get('mobile_number')
+            temp_token = data.get('temp_token')
 
-            if not session_otp or not session_otp_expiry_time or not mobile_number:
-                return JsonResponse({'error': 'OTP or mobile number not found'}, status=400)
+            # session_otp = request.session.get('otp_sms')
+            # session_otp_expiry_time = request.session.get('otp_expiry_time')
+            # mobile_number = request.session.get('mobile_number')
+
+            # Decode the temporary token
+            try:
+                payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
+                mobile_number = payload['mobile_number']
+                session_otp = payload['otp']
+                session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
+                # session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
+
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({'error': 'Temporary token expired'}, status=400)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=400)
+
+            # if not session_otp or not session_otp_expiry_time or not mobile_number:
+            #     return JsonResponse({'error': 'OTP or mobile number not found'}, status=400)
 
             # Convert session_otp_expiry_time back to a datetime object
-            otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
+            # otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
+
+            # if timezone.now() > session_otp_expiry_time:
+            #     return JsonResponse({'error': 'OTP has expired'}, status=400)
 
             # Check if OTP is expired
-            if timezone.now() > otp_expiry_time:
-                return JsonResponse({'error': 'OTP has expired'}, status=400)
+            # if timezone.now() > otp_expiry_time:
+            #     return JsonResponse({'error': 'OTP has expired'}, status=400)
             
             # Verify the OTP
             if otp == session_otp:
@@ -335,12 +375,13 @@ class VerifyOTPForSMS(APIView):
                 
                 except UserData.DoesNotExist:
                     # If the user does not exist, store the mobile number and OTP in the session for registration
-                    request.session['mobile_number'] = mobile_number
-                    request.session['otp_sms'] = otp
+                    # request.session['mobile_number'] = mobile_number
+                    # request.session['otp_sms'] = otp
 
                     return JsonResponse({
                         'message': 'User does not exist. Please complete the registration.',
-                        'status': 'new_user'
+                        'status': 'new_user',
+                        'temp_token': temp_token  # Return the same token for signup
                     }, status=200)
             
             else:
@@ -363,11 +404,21 @@ class SignInView(APIView):
             
             email = data.get('email')
             location = data.get('location')
+            temp_token = data.get('temp_token')
+
+            # Decode the temporary token to get the mobile number
+            try:
+                payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
+                mobile_number = payload['mobile_number']
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({'error': 'Temporary token expired'}, status=400)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=400)
             
             if not email or not location:
                 return Response({'error': 'Email and location Required'})
             
-            mobile_number = request.session['mobile_number']
+            # mobile_number = request.session['mobile_number']
             
             if not mobile_number:
                 return Response({'error': 'Mobile number not found'})

@@ -1,5 +1,7 @@
 from django.urls import path, include
 from Account.views import *
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('api/signin/send-otp/', LoginWithSMS.as_view(), name='SignUp'),
@@ -11,3 +13,5 @@ urlpatterns = [
     path('api/login/email/verify-otp/', VerifyOTPForEmail.as_view(), name='login-email-verify-otp'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
 ]
+if settings.DEBUG:  # Serve media files during development
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
