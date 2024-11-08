@@ -24,6 +24,153 @@ import logging
 import jwt
 import datetime
 
+class OrderCreateAPIView(APIView):
+    """
+    API View to create an order and apply a coupon if available.
+    """
+
+    def post(self, request):
+        user = request.user
+        cart_items = request.data.get('cart_items', [])
+        coupon_code = request.data.get('coupon_code', None)
+        shipping_address = request.data.get('shipping_address', '')
+
+        if not cart_items:
+            return Response(
+                {"success": False, "message": "No items in cart."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        total_price = 0
+        order = Order.objects.create(
+            user=user,
+            total_price=0,  # We'll update it after calculating discounts
+            shipping_address=shipping_address,
+            status='pending'
+        )
+
+        # Create OrderItems and calculate total
+        for item in cart_items:
+            product = get_object_or_404(Product, id=item['product_id'])
+            quantity = item['quantity']
+            price = product.price * quantity
+            total_price += price
+
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=quantity,
+                price=price
+            )
+
+        discount = 0
+        # Apply coupon if provided
+        if coupon_code:
+            try:
+                coupon = Coupon.objects.get(
+                    code=coupon_code,
+                    valid_from__lte=timezone.now(),
+                    valid_to__gte=timezone.now()
+                )
+                # Assuming `is_valid` method in Coupon model handles all conditions
+                if coupon.is_valid(total_price, cart_items, is_first_order=not Order.objects.filter(user=user).exists()):
+                    discount = coupon.get_discount(total_price)
+                    order.total_price = total_price - discount
+                    coupon.used_count += 1
+                    coupon.save()
+                else:
+                    return Response(
+                        {"success": False, "message": "Coupon conditions not met."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except Coupon.DoesNotExist:
+                return Response(
+                    {"success": False, "message": "Invalid coupon code."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            order.total_price = total_price
+
+        order.save()
+
+        return Response({
+            "success": True,
+            "order_id": order.id,
+            "total_price": total_price,
+            "discount": discount,
+            "final_total": order.total_price,
+            "message": "Order created successfully."
+        }, status=status.HTTP_201_CREATED)
+
+class CouponApplyAPIView(APIView):
+    """
+    API View to apply a coupon and calculate the discount based on conditions.
+    """
+
+    def post(self, request, *args, **kwargs):
+        code = request.data.get('code')
+        cart_items = request.data.get('cart_items', [])
+
+        if not cart_items:
+            return Response(
+                {"success": False, "message": "No items in cart."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Calculate total amount from cart items
+        total_amount = sum(item['price'] for item in cart_items)
+        is_first_order = not Order.objects.filter(user=request.user).exists()
+        products = [get_object_or_404(Product, id=item['product_id']) for item in cart_items]
+
+        try:
+            # Find the coupon if it exists and is within the valid date range
+            coupon = Coupon.objects.get(code=code, valid_from__lte=timezone.now(), valid_to__gte=timezone.now())
+
+            # Check if the coupon is valid
+            if coupon.is_valid(total_amount, products, is_first_order):
+                discount = 0
+
+                # Calculate discount based on coupon type
+                if coupon.is_percentage:
+                    discount = total_amount * (coupon.discount / 100)
+                else:
+                    discount = coupon.discount
+
+                # Update coupon usage count if needed
+                coupon.used_count += 1
+                coupon.save()
+
+                # Send successful response with discount details
+                return Response({
+                    "success": True,
+                    "discount": discount,
+                    "final_total": total_amount - discount,
+                    "message": f"Coupon '{code}' applied successfully."
+                }, status=status.HTTP_200_OK)
+            else:
+                # Invalid coupon usage for this cart or conditions not met
+                return Response({
+                    "success": False,
+                    "message": "Coupon not valid for cart items or does not meet requirements."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Coupon.DoesNotExist:
+            # Invalid coupon code
+            return Response({
+                "success": False,
+                "message": "Invalid coupon code."
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Set the user field to the currently authenticated user
+        serializer.save(user=self.request.user)
+
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -156,8 +303,51 @@ class LoginWithEmail(APIView):
                 return Response({'message': 'OTP Sent Successfully',
                                  'temp_token': temp_token  # Return temp token with OTP details
                                  })
+            elif UserData.objects.filter(mobile_number=email).exists():
+
+                mobile_number = email
+
+                # Generate OTP for SMS
+                otp_sms = ''.join(random.choices(string.digits, k=5))
+                
+                # Set OTP expiration time (5 minutes from now)
+                otp_expiry_time = timezone.now() + timedelta(minutes=5)
+
+                # Token Expiration set to 1 hour
+                token_expiry_time = timezone.now() + timedelta(hours=5)
+
+                temp_token = jwt.encode(
+                {
+                    'mobile_number': mobile_number,
+                    'otp': otp_sms,
+                    'exp': int(token_expiry_time.timestamp()),     # Convert to integer timestamp
+                    'expotp': int(otp_expiry_time.timestamp())      # Convert to integer timestamp
+                    
+                },
+                settings.SECRET_KEY,
+                algorithm='HS256'
+            )
+                
+                if not mobile_number.startswith('+91'):
+                    mobile_numbers = '+91' + mobile_number
+                
+                try:
+                    message = client.messages.create(
+                        body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
+                        from_=twilio_phone_number,
+                        to=mobile_numbers
+                    )
+
+                except Exception as e:
+                    return Response({'error': str(e)}, status=500)
+            
+                return Response({'message': 'OTP sent. Please Enter OTP to verify your Mobile Number',
+                             'temp_token': temp_token  # Return temp token with OTP details
+                             }, status=200)
+        
             else:
-                return JsonResponse({'error': 'Email Does not exists'}, status=400)
+                return Response({'error': 'Mobile Number and Email does not exist'}, status=400)
+        
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid Json format'}, status=400)
         except Exception as e:
@@ -168,44 +358,73 @@ class ResendOTPForEmail(APIView):
     
     def post(self, request):
         try:
-            # Check if the session already has an OTP
-            session_otp = request.session.get('otp')
-            session_otp_expiry_time = request.session.get('otp_expiry_time')
-            
-            # Check if there's already an OTP and if it's not expired
-            if session_otp and session_otp_expiry_time:
-                otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
-                if timezone.now() < otp_expiry_time:
-                    # if OTP is valid, reuse the existing OTP
-                    otp_value = session_otp
-                else:
-                    # OTP is expired, generate a new one
-                    otp_value = ''.join(random.choices(string.digits, k=5))
-                    otp_expiry_time = timezone.now() + timedelta(minutes=5)
-                    request.session['otp'] = otp_value
-                    request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
-                    
-            else:
-                # No OTP found or session expired, generate a new OTP
-                otp_value = ''.join(random.choices(string.digits, k=5))
-                otp_sms = ''.join(random.choices(string.digits, k=5))
-                otp_expiry_time = timezone.now() + timedelta(minutes=5)
-                request.session['otp'] = otp_value
-                request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+            data = json.loads(request.body)
+            temp_token = data.get('temp_token')
 
-            # Send OTP email
-            email = request.session.get('email')
-            if not email:
-                return JsonResponse({'error': 'Email not found in session'}, status=400)
+            # Decode the temporary token
+            try:
+                payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
+                if 'email' in payload:
+                    identifier = payload['email']
+                    identifier_type = 'email'
+                elif 'mobile_number' in payload:
+                    identifier = payload['mobile_number']
+                    identifier_type = 'mobile_number'
+                else:
+                    return JsonResponse({'error': 'Invalid token payload'}, status=400)
+                
+                session_otp = payload['otp']
+                session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
+                session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
+
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({'error': 'Temporary token expired'}, status=400)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=400)
+            except Exception as e:
+                return JsonResponse({'error': str(e)}, status=500)
+
             
-            send_mail(
-                'OTP',
-                f'OTP is {otp_value}. Do not share this with anyone.',
-                settings.DEFAULT_FROM_EMAIL,
-                [email]
-            )
+            # Generate a new OTP if the current OTP is expired
+            if timezone.now() > session_otp_expiry_time:
+                otp = ''.join(random.choices(string.digits, k=5))
+                otp_expiry_time = timezone.now() + timedelta(minutes=5)
+                
+                # Update the temp_token with new OTP details
+                temp_token = jwt.encode(
+                    {   
+
+                        identifier_type: identifier,
+                        'otp': otp,
+                        'exp': timezone.now() + timedelta(hours=5),  # Token expiry
+                        'expotp': otp_expiry_time.timestamp()  # OTP expiry
+                    },
+                    settings.SECRET_KEY,
+                    algorithm='HS256'
+                )
+            else:
+                otp = session_otp
             
-            return JsonResponse({'message': 'OTP resent Successfully. Please check your email.'})
+            # Resend OTP via email or SMS
+            if identifier_type == 'email':
+                send_mail(
+                    'OTP',
+                    f'Your OTP is {otp}. Do not share this with anyone.',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [identifier]
+                )
+            else:
+                if not identifier.startswith('+91'):
+                    identifier = '+91' + identifier
+                message = client.messages.create(
+                    body=f'Your OTP is {otp}. Do not share this with anyone.',
+                    from_=twilio_phone_number,
+                    to=identifier
+                )
+            
+            return JsonResponse({'message': 'OTP resent Successfully. Please check your email.',
+                             'temp_token': temp_token  # Return temp token with OTP details
+                             })
             
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500) 
@@ -224,7 +443,15 @@ class VerifyOTPForEmail(APIView):
             # Decode the temporary token
             try:
                 payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
-                email = payload['email']
+                if 'email' in payload:
+                    identifier = payload['email']
+                    identifier_type = 'email'
+                elif 'mobile_number' in payload:
+                    identifier = payload['mobile_number']
+                    identifier_type = 'mobile_number'
+                else:
+                    return JsonResponse({'error': 'Invalid token payload'}, status=400)
+                
                 session_otp = payload['otp']
                 session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
                 session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
@@ -259,9 +486,13 @@ class VerifyOTPForEmail(APIView):
                 
                 # Ensure that the user exists
                 try:
-                    user = User.objects.get(email=email)
+                    if identifier_type == 'email':
+                        user = User.objects.get(email=identifier)
+                    else:
+                        mobile_number_user = UserData.objects.get(mobile_number=identifier)
+                        user = mobile_number_user.user
                 except User.DoesNotExist:
-                    return JsonResponse({'error': 'User matching query does not exist.'}, status=400)
+                    return JsonResponse({'error': 'User not fount.'}, status=400)
                 
                 LoginHistory.objects.create(
                         user=user,
@@ -294,6 +525,7 @@ class LoginWithSMS(APIView):
             data = json.loads(request.body)
             
             mobile_number = data.get('mobile_number')
+            is_profession = data.get('is_profession')
             
             # Generate OTP for SMS
             otp_sms = ''.join(random.choices(string.digits, k=5))
@@ -312,13 +544,12 @@ class LoginWithSMS(APIView):
             # request.session['mobile_number'] = mobile_number
             
             # If the mobile number doesn't start with +91, add it
-            if not mobile_number.startswith('+91'):
-                mobile_numbers = '+91' + mobile_number
 
             # Create a temporary token containing the mobile number and OTP
             temp_token = jwt.encode(
                 {
                     'mobile_number': mobile_number,
+                    'is_profession': is_profession,
                     'otp': otp_sms,
                     'exp': token_expiry_time.timestamp(),
                     'expotp': otp_expiry_time.timestamp()
@@ -328,6 +559,9 @@ class LoginWithSMS(APIView):
                 algorithm='HS256'
             )
             
+            if not mobile_number.startswith('+91'):
+                mobile_numbers = '+91' + mobile_number
+
             try:
                 message = client.messages.create(
                     body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
@@ -360,43 +594,48 @@ class ResendOTPForSMS(APIView):
             try:
                 payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
                 mobile_number = payload['mobile_number']
+                is_profession = payload['is_profession']
                 session_otp_sms = payload['otp']
                 session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
-                # session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
+                session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
 
             except jwt.ExpiredSignatureError:
                 return JsonResponse({'error': 'Temporary token expired'}, status=400)
             except jwt.InvalidTokenError:
                 return JsonResponse({'error': 'Invalid token'}, status=400)
+            except Exception as e:
+                return JsonResponse({'error': str(e)}, status=500)
+            
+            # if timezone.now() > session_otp_expiry_time:
+            #     return JsonResponse({'error': 'OTP has expired'}, status=400)
 
             # Check if the session already has an OTP
             # session_otp_sms = request.session.get('otp_sms')
             # session_otp_expiry_time = request.session.get('otp_expiry_time')
             
-            # Check if there's already an OTP and if it's not expired
-            if session_otp_sms and session_otp_expiry_time:
-                otp_expiry_time = timezone.datetime.fromisoformat(session_otp_expiry_time)
-                if timezone.now() < otp_expiry_time:
-                    # if OTP is valid, reuse the existing OTP
-                    otp_sms = session_otp_sms
-
-                else:
-                    # OTP is expired, generate a new one
-                    otp_sms = ''.join(random.choices(string.digits, k=5))
-                    otp_expiry_time = timezone.now() + timedelta(minutes=5)
-                    request.session['otp_sms'] = otp_sms
-                    request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
-                    
-            else:
-                # No OTP found or session expired, generate a new OTP
+            # Generate a new OTP if the current OTP is expired
+            if timezone.now() > session_otp_expiry_time:
                 otp_sms = ''.join(random.choices(string.digits, k=5))
                 otp_expiry_time = timezone.now() + timedelta(minutes=5)
-                request.session['otp_sms'] = otp_sms
-                request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+                
+                # Update the temp_token with new OTP details
+                temp_token = jwt.encode(
+                    {
+                        'mobile_number': mobile_number,
+                        'is_profession': is_profession,
+                        'otp': otp_sms,
+                        'exp': timezone.now() + timedelta(hours=5),  # Token expiry
+                        'expotp': otp_expiry_time.timestamp()  # OTP expiry
+                    },
+                    settings.SECRET_KEY,
+                    algorithm='HS256'
+                )
+            else:
+                otp_sms = session_otp_sms
             
-            mobile_number = request.session.get('mobile_number')
-            if not mobile_number:
-                return JsonResponse({'error': "Mobile Number not found in session."}, status=400)
+            # mobile_number = request.session.get('mobile_number')
+            # if not mobile_number:
+            #     return JsonResponse({'error': "Mobile Number not found in session."}, status=400)
             
             # If the mobile number doesn't start with +91, add it
             if not mobile_number.startswith('+91'):
@@ -408,7 +647,9 @@ class ResendOTPForSMS(APIView):
                     to=mobile_number
                 )
             
-            return JsonResponse({'message': 'OTP resent Successfully. Please check your Mobile.'})
+            return JsonResponse({'message': 'OTP resent Successfully. Please check your Mobile.',
+                             'temp_token': temp_token  # Return temp token with OTP details
+                             })
             
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -432,6 +673,7 @@ class VerifyOTPForSMS(APIView):
             try:
                 payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
                 mobile_number = payload['mobile_number']
+                is_profession = payload['is_profession']
                 session_otp = payload['otp']
                 session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
                 # session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
@@ -515,13 +757,14 @@ class SignInView(APIView):
             try:
                 payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
                 mobile_number = payload['mobile_number']
+                is_profession = payload['is_profession']
             except jwt.ExpiredSignatureError:
                 return JsonResponse({'error': 'Temporary token expired'}, status=400)
             except jwt.InvalidTokenError:
                 return JsonResponse({'error': 'Invalid token'}, status=400)
             
-            if not email or not location:
-                return Response({'error': 'Email and location Required'})
+            if not email:
+                return Response({'error': 'Email Required'})
             
             # mobile_number = request.session['mobile_number']
             
@@ -536,7 +779,7 @@ class SignInView(APIView):
             
             serializer = UserDataSerializer(user_data)
             
-            user_profile = UserProfile(user=user, location=location)
+            user_profile = UserProfile(user=user, location=location, is_professional=is_profession)
             user_profile.save()
             
             serializer = UserProfileSerializer(user_profile)

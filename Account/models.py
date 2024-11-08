@@ -100,6 +100,7 @@ class UserProfile(models.Model):
     profile_img = models.ImageField(blank=True)
     Bio = models.CharField(blank=True, max_length=200)
     medical_history = models.TextField(blank=True, null=True)
+    is_professional = models.BooleanField(default=False, blank=True, null=True)
     location = models.CharField(blank=True, max_length=200)
     last_updated = models.DateTimeField(auto_now=True)  # Automatically updates when the record is saved
     date_of_birth = models.DateField(blank=True, null=True)  # DOB
@@ -136,10 +137,17 @@ class OTP(models.Model):
         super().save(*args, **kwargs)
         
 class Customer(models.Model):
+    CHOICE_TYPE = [
+        ('home', 'Home'),
+        ('office', 'Office'),
+        ('other', 'Other')
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer')
     full_name = models.CharField(max_length=100)
     phone_number = models.IntegerField()
     address = models.CharField(max_length=255)
+    address_type = models.CharField(max_length=10, choices=CHOICE_TYPE, default="Home")
+    custom_address_type = models.CharField(max_length=50, blank=True, null=True)  # Only used if "Other" is selected
     locality = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100)
     zipcode = models.IntegerField()
@@ -261,7 +269,36 @@ class ProductImage(models.Model):
         if self.image:
             return format_html('<img src="{}" width="50" height="50" />', self.image.url)
         return "No Image"
-        
+
+class Coupon(models.Model):
+    code = models.CharField(max_length=15, unique=True)
+    discount = models.DecimalField(max_digits=5, decimal_places=2)  # discount amount, e.g., 10 for 10%
+    is_percentage = models.BooleanField(default=True)  # True for % discount, False for fixed amount
+    valid_from = models.DateTimeField()
+    valid_to = models.DateTimeField()
+    usage_limit = models.PositiveIntegerField(null=True, blank=True)  # None for unlimited usage
+    used_count = models.PositiveIntegerField(default=0)
+    minimum_order_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Minimum order for coupon
+    is_first_order_only = models.BooleanField(default=False)  # True if it's only for the first order
+    applicable_products = models.ManyToManyField(Product, blank=True)  # Set blank=True to allow coupons for all products
+
+    def is_valid(self, total_amount, cart_items, is_first_order):
+        # Check first-order condition
+        if self.first_order_only and not is_first_order:
+            return False
+
+        # Check minimum order amount
+        if total_amount < self.minimum_order_value:
+            return False
+
+        # Check applicable products
+        applicable = all(item['product_id'] in self.applicable_products.values_list('id', flat=True)
+                         for item in cart_items) if self.applicable_products.exists() else True
+        return applicable
+
+    def get_discount(self, total_amount):
+        return total_amount * (self.discount_percentage / 100)
+
 # Order Model
 class Order(models.Model):
     STATUS_CHOICES = [

@@ -8,6 +8,7 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'brands', BrandViewSet)
+router.register(r'address', CustomerViewSet)
 
 urlpatterns = [
     path('api/signin/send-otp/', LoginWithSMS.as_view(), name='SignUp'),
@@ -25,6 +26,12 @@ urlpatterns = [
 
     # Get SKU to all data of product
     path('api/products/<str:sku>/', ProductDetailAPIView.as_view(), name='Product Details API View'),
+
+    # Coupon URL
+    path('api/apply-coupon/', CouponApplyAPIView.as_view(), name='apply_coupon_api'),
+
+    # Order Products
+    path('api/create-order/', OrderCreateAPIView.as_view(), name='create_order_api'),
 ]
 if settings.DEBUG:  # Serve media files during development
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
