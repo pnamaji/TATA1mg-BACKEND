@@ -1,9 +1,11 @@
 from django.db import models
+from django.urls import reverse
 import uuid
 from django.utils import timezone
 import random
 import os
 from django.utils.html import format_html
+from django.utils.text import slugify
 import string
 from django.contrib.auth import get_user_model
 import uuid
@@ -98,6 +100,7 @@ class UserProfile(models.Model):
     profile_img = models.ImageField(blank=True)
     Bio = models.CharField(blank=True, max_length=200)
     medical_history = models.TextField(blank=True, null=True)
+    is_professional = models.BooleanField(default=False, blank=True, null=True)
     location = models.CharField(blank=True, max_length=200)
     last_updated = models.DateTimeField(auto_now=True)  # Automatically updates when the record is saved
     date_of_birth = models.DateField(blank=True, null=True)  # DOB
@@ -134,10 +137,17 @@ class OTP(models.Model):
         super().save(*args, **kwargs)
         
 class Customer(models.Model):
+    CHOICE_TYPE = [
+        ('home', 'Home'),
+        ('office', 'Office'),
+        ('other', 'Other')
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer')
     full_name = models.CharField(max_length=100)
     phone_number = models.IntegerField()
     address = models.CharField(max_length=255)
+    address_type = models.CharField(max_length=10, choices=CHOICE_TYPE, default="Home")
+    custom_address_type = models.CharField(max_length=50, blank=True, null=True)  # Only used if "Other" is selected
     locality = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100)
     zipcode = models.IntegerField()
@@ -184,10 +194,6 @@ def file_upload_to_products(instance, filename):
     ext = filename.split('.')[-1]
     new_filename = f"{instance.product.name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
     return os.path.join('product_images/', new_filename)
-
-def generate_sku(instance):
-    # Example: Generate SKU based on brand, category, and a UUID for uniqueness
-    return f"{instance.brand.name[:3].upper()}-{instance.category.id}-{uuid.uuid4().hex[:8]}"
     
 
 # Product Model linked to Category
@@ -198,6 +204,7 @@ class Product(models.Model):
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
     description = models.TextField()
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    ad = models.BooleanField(blank=True, null=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     discounted_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     prescription_required = models.BooleanField(null=True, blank=True, default=False)
@@ -205,6 +212,7 @@ class Product(models.Model):
     sku = models.CharField(max_length=100, unique=True, blank=True, editable=False)  # SKU field
     expiry_date = models.DateField(blank=True, null=True)
     delivery_days = models.IntegerField(default=3)  # Admin se set hone wala field
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
@@ -219,7 +227,7 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         # Generate SKU if it's not already set
         if not self.sku:
-            self.sku = generate_sku(self)  # Generate SKU based on instance attributes
+            self.sku = self.generate_unique_sku()  # Generate SKU based on instance attributes
         
         if self.selling_price and self.discount_percentage:
             # Calculate the discounted price based on percentage
@@ -235,6 +243,21 @@ class Product(models.Model):
         delivery_date = today + timedelta(days=self.delivery_days)
         return delivery_date
     
+    def generate_unique_sku(self):
+        base_sku = slugify(self.name)
+        unique_sku = base_sku
+        num = 1
+        
+        # Check if SKU exists, if it does, keep adding numbers to make it unique
+        while Product.objects.filter(sku=unique_sku).exists():
+            unique_sku = f"{base_sku}-{random.randint(1000, 9999)}"
+            num += 1
+        
+        return unique_sku
+    
+    def get_share_link(self):
+        return f"/Products/{self.sku}"
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to=file_upload_to_products)
@@ -246,7 +269,36 @@ class ProductImage(models.Model):
         if self.image:
             return format_html('<img src="{}" width="50" height="50" />', self.image.url)
         return "No Image"
-        
+
+class Coupon(models.Model):
+    code = models.CharField(max_length=15, unique=True)
+    discount = models.DecimalField(max_digits=5, decimal_places=2)  # discount amount, e.g., 10 for 10%
+    is_percentage = models.BooleanField(default=True)  # True for % discount, False for fixed amount
+    valid_from = models.DateTimeField()
+    valid_to = models.DateTimeField()
+    usage_limit = models.PositiveIntegerField(null=True, blank=True)  # None for unlimited usage
+    used_count = models.PositiveIntegerField(default=0)
+    minimum_order_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Minimum order for coupon
+    is_first_order_only = models.BooleanField(default=False)  # True if it's only for the first order
+    applicable_products = models.ManyToManyField(Product, blank=True)  # Set blank=True to allow coupons for all products
+
+    def is_valid(self, total_amount, cart_items, is_first_order):
+        # Check first-order condition
+        if self.first_order_only and not is_first_order:
+            return False
+
+        # Check minimum order amount
+        if total_amount < self.minimum_order_value:
+            return False
+
+        # Check applicable products
+        applicable = all(item['product_id'] in self.applicable_products.values_list('id', flat=True)
+                         for item in cart_items) if self.applicable_products.exists() else True
+        return applicable
+
+    def get_discount(self, total_amount):
+        return total_amount * (self.discount_percentage / 100)
+
 # Order Model
 class Order(models.Model):
     STATUS_CHOICES = [
