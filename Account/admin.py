@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import *
 from django import forms
-from .forms import ProductForm
+# from .forms import ProductForm
 # from .admin import TypesOfCategoryInline  # Ensure to import your inline class
 
 class UserDataAdmin(BaseUserAdmin):
@@ -47,103 +47,103 @@ class UserProfileAdmin(admin.ModelAdmin):
 admin.site.register(UserProfile, UserProfileAdmin)
 
 
-# Register Customer model
-@admin.register(Customer)
-class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'phone_number', 'city', 'zipcode', 'state')
-    search_fields = ('full_name', 'phone_number', 'city', 'state')
-    list_filter = ('city', 'state')
+# # Register Customer model
+# @admin.register(Customer)
+# class CustomerAdmin(admin.ModelAdmin):
+#     list_display = ('full_name', 'phone_number', 'city', 'zipcode', 'state')
+#     search_fields = ('full_name', 'phone_number', 'city', 'state')
+#     list_filter = ('city', 'state')
 
-# Register Category model
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
-    search_fields = ('name',)
-    list_filter = ('name',)
+# # Register Category model
+# @admin.register(Category)
+# class CategoryAdmin(admin.ModelAdmin):
+#     list_display = ('name', 'description')
+#     search_fields = ('name',)
+#     list_filter = ('name',)
 
-# Register TypesOfCategory model
-@admin.register(TypesOfCategory)
-class TypesOfCategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'description')
-    search_fields = ('name',)
-    list_filter = ('category',)
+# # Register TypesOfCategory model
+# @admin.register(TypesOfCategory)
+# class TypesOfCategoryAdmin(admin.ModelAdmin):
+#     list_display = ('name', 'category', 'description')
+#     search_fields = ('name',)
+#     list_filter = ('category',)
 
-# Register Brand model
-@admin.register(Brand)
-class BrandAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
-    search_fields = ('name',)
+# # Register Brand model
+# @admin.register(Brand)
+# class BrandAdmin(admin.ModelAdmin):
+#     list_display = ('name', 'description')
+#     search_fields = ('name',)
     
-class ProductAdminForm(forms.ModelForm):
-    class Meta:
-        model = Product
-        fields = '__all__'
+# class ProductAdminForm(forms.ModelForm):
+#     class Meta:
+#         model = Product
+#         fields = '__all__'
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
 
-        # Set initial queryset to none or filter by category if editing an existing instance
-        self.fields['categorytype'].queryset = TypesOfCategory.objects.none()
+#         # Set initial queryset to none or filter by category if editing an existing instance
+#         self.fields['categorytype'].queryset = TypesOfCategory.objects.none()
 
-        # Check if there's an instance or a selected category
-        if 'category' in self.data:
-            try:
-                category_id = int(self.data.get('category'))
-                self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category_id=category_id)
-            except (ValueError, TypeError):
-                pass  # invalid input from the form data
-        elif self.instance.pk:  # Editing an existing instance
-            self.fields['categorytype'].queryset = self.instance.category.typesofcategory_set.all()
+#         # Check if there's an instance or a selected category
+#         if 'category' in self.data:
+#             try:
+#                 category_id = int(self.data.get('category'))
+#                 self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category_id=category_id)
+#             except (ValueError, TypeError):
+#                 pass  # invalid input from the form data
+#         elif self.instance.pk:  # Editing an existing instance
+#             self.fields['categorytype'].queryset = self.instance.category.typesofcategory_set.all()
 
-class ProductAdmin(admin.ModelAdmin):
-    form = ProductAdminForm
+# class ProductAdmin(admin.ModelAdmin):
+#     form = ProductAdminForm
 
-    class Media:
-        js = ('admin/js/category_type_filter.js',)  # Reference the custom JavaScript for AJAX filtering
+#     class Media:
+#         js = ('admin/js/category_type_filter.js',)  # Reference the custom JavaScript for AJAX filtering
 
-admin.site.register(Product, ProductAdmin)
+# admin.site.register(Product, ProductAdmin)
 
 
-class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ('product', 'image_preview')
-    search_fields = ('product__name',)
+# class ProductImageAdmin(admin.ModelAdmin):
+#     list_display = ('product', 'image_preview')
+#     search_fields = ('product__name',)
     
-    # Optional: Preview the image in the list display
-    def image_preview(self, obj):
-        if obj.image:
-            return f'<img src="{obj.image.url}" width="50" height="50" />'
-        return "No Image"
+#     # Optional: Preview the image in the list display
+#     def image_preview(self, obj):
+#         if obj.image:
+#             return f'<img src="{obj.image.url}" width="50" height="50" />'
+#         return "No Image"
     
-    image_preview.allow_tags = True
-    image_preview.short_description = 'Image Preview'
+#     image_preview.allow_tags = True
+#     image_preview.short_description = 'Image Preview'
 
-admin.site.register(ProductImage, ProductImageAdmin)
+# admin.site.register(ProductImage, ProductImageAdmin)
 
-# Register Order model
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'total_price', 'status', 'order_date', 'shipping_address', 'tracking_number')
-    search_fields = ('user__username', 'status', 'tracking_number')
-    list_filter = ('status', 'order_date')
-    date_hierarchy = 'order_date'
+# # Register Order model
+# @admin.register(Order)
+# class OrderAdmin(admin.ModelAdmin):
+#     list_display = ('id', 'user', 'total_price', 'status', 'order_date', 'shipping_address', 'tracking_number')
+#     search_fields = ('user__username', 'status', 'tracking_number')
+#     list_filter = ('status', 'order_date')
+#     date_hierarchy = 'order_date'
 
-# Register OrderItem model
-@admin.register(OrderItem)
-class OrderItemAdmin(admin.ModelAdmin):
-    list_display = ('order', 'product', 'quantity', 'price')
-    search_fields = ('order__id', 'product__name')
+# # Register OrderItem model
+# @admin.register(OrderItem)
+# class OrderItemAdmin(admin.ModelAdmin):
+#     list_display = ('order', 'product', 'quantity', 'price')
+#     search_fields = ('order__id', 'product__name')
 
-# Register Review model
-@admin.register(Review)
-class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('user', 'product', 'rating', 'review_date')
-    search_fields = ('user__username', 'product__name')
-    list_filter = ('rating', 'review_date')
+# # Register Review model
+# @admin.register(Review)
+# class ReviewAdmin(admin.ModelAdmin):
+#     list_display = ('user', 'product', 'rating', 'review_date')
+#     search_fields = ('user__username', 'product__name')
+#     list_filter = ('rating', 'review_date')
 
-# Register Prescription model
-@admin.register(Prescription)
-class PrescriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'doctor_name', 'issued_date')
-    search_fields = ('user__username', 'doctor_name')
-    list_filter = ('issued_date',)
-    date_hierarchy = 'issued_date'
+# # Register Prescription model
+# @admin.register(Prescription)
+# class PrescriptionAdmin(admin.ModelAdmin):
+#     list_display = ('user', 'doctor_name', 'issued_date')
+#     search_fields = ('user__username', 'doctor_name')
+#     list_filter = ('issued_date',)
+#     date_hierarchy = 'issued_date'

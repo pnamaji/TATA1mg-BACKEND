@@ -16,208 +16,207 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from twilio.rest import Client
 import json, random, string, logging
-from .models import UserData, LoginHistory, Product
-from Account.serializers import ProductSerializer
+from .models import UserData, LoginHistory
 from Account.serializers import *
 from decouple import config
 import logging
 import jwt
 import datetime
 
-class OrderCreateAPIView(APIView):
-    """
-    API View to create an order and apply a coupon if available.
-    """
+# class OrderCreateAPIView(APIView):
+#     """
+#     API View to create an order and apply a coupon if available.
+#     """
 
-    def post(self, request):
-        user = request.user
-        cart_items = request.data.get('cart_items', [])
-        coupon_code = request.data.get('coupon_code', None)
-        shipping_address = request.data.get('shipping_address', '')
+#     def post(self, request):
+#         user = request.user
+#         cart_items = request.data.get('cart_items', [])
+#         coupon_code = request.data.get('coupon_code', None)
+#         shipping_address = request.data.get('shipping_address', '')
 
-        if not cart_items:
-            return Response(
-                {"success": False, "message": "No items in cart."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+#         if not cart_items:
+#             return Response(
+#                 {"success": False, "message": "No items in cart."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
 
-        total_price = 0
-        order = Order.objects.create(
-            user=user,
-            total_price=0,  # We'll update it after calculating discounts
-            shipping_address=shipping_address,
-            status='pending'
-        )
+#         total_price = 0
+#         order = Order.objects.create(
+#             user=user,
+#             total_price=0,  # We'll update it after calculating discounts
+#             shipping_address=shipping_address,
+#             status='pending'
+#         )
 
-        # Create OrderItems and calculate total
-        for item in cart_items:
-            product = get_object_or_404(Product, id=item['product_id'])
-            quantity = item['quantity']
-            price = product.price * quantity
-            total_price += price
+#         # Create OrderItems and calculate total
+#         for item in cart_items:
+#             product = get_object_or_404(Product, id=item['product_id'])
+#             quantity = item['quantity']
+#             price = product.price * quantity
+#             total_price += price
 
-            OrderItem.objects.create(
-                order=order,
-                product=product,
-                quantity=quantity,
-                price=price
-            )
+#             OrderItem.objects.create(
+#                 order=order,
+#                 product=product,
+#                 quantity=quantity,
+#                 price=price
+#             )
 
-        discount = 0
-        # Apply coupon if provided
-        if coupon_code:
-            try:
-                coupon = Coupon.objects.get(
-                    code=coupon_code,
-                    valid_from__lte=timezone.now(),
-                    valid_to__gte=timezone.now()
-                )
-                # Assuming `is_valid` method in Coupon model handles all conditions
-                if coupon.is_valid(total_price, cart_items, is_first_order=not Order.objects.filter(user=user).exists()):
-                    discount = coupon.get_discount(total_price)
-                    order.total_price = total_price - discount
-                    coupon.used_count += 1
-                    coupon.save()
-                else:
-                    return Response(
-                        {"success": False, "message": "Coupon conditions not met."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            except Coupon.DoesNotExist:
-                return Response(
-                    {"success": False, "message": "Invalid coupon code."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        else:
-            order.total_price = total_price
+#         discount = 0
+#         # Apply coupon if provided
+#         if coupon_code:
+#             try:
+#                 coupon = Coupon.objects.get(
+#                     code=coupon_code,
+#                     valid_from__lte=timezone.now(),
+#                     valid_to__gte=timezone.now()
+#                 )
+#                 # Assuming `is_valid` method in Coupon model handles all conditions
+#                 if coupon.is_valid(total_price, cart_items, is_first_order=not Order.objects.filter(user=user).exists()):
+#                     discount = coupon.get_discount(total_price)
+#                     order.total_price = total_price - discount
+#                     coupon.used_count += 1
+#                     coupon.save()
+#                 else:
+#                     return Response(
+#                         {"success": False, "message": "Coupon conditions not met."},
+#                         status=status.HTTP_400_BAD_REQUEST
+#                     )
+#             except Coupon.DoesNotExist:
+#                 return Response(
+#                     {"success": False, "message": "Invalid coupon code."},
+#                     status=status.HTTP_404_NOT_FOUND
+#                 )
+#         else:
+#             order.total_price = total_price
 
-        order.save()
+#         order.save()
 
-        return Response({
-            "success": True,
-            "order_id": order.id,
-            "total_price": total_price,
-            "discount": discount,
-            "final_total": order.total_price,
-            "message": "Order created successfully."
-        }, status=status.HTTP_201_CREATED)
+#         return Response({
+#             "success": True,
+#             "order_id": order.id,
+#             "total_price": total_price,
+#             "discount": discount,
+#             "final_total": order.total_price,
+#             "message": "Order created successfully."
+#         }, status=status.HTTP_201_CREATED)
 
-class CouponApplyAPIView(APIView):
-    """
-    API View to apply a coupon and calculate the discount based on conditions.
-    """
+# class CouponApplyAPIView(APIView):
+#     """
+#     API View to apply a coupon and calculate the discount based on conditions.
+#     """
 
-    def post(self, request, *args, **kwargs):
-        code = request.data.get('code')
-        cart_items = request.data.get('cart_items', [])
+#     def post(self, request, *args, **kwargs):
+#         code = request.data.get('code')
+#         cart_items = request.data.get('cart_items', [])
 
-        if not cart_items:
-            return Response(
-                {"success": False, "message": "No items in cart."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+#         if not cart_items:
+#             return Response(
+#                 {"success": False, "message": "No items in cart."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
 
-        # Calculate total amount from cart items
-        total_amount = sum(item['price'] for item in cart_items)
-        is_first_order = not Order.objects.filter(user=request.user).exists()
-        products = [get_object_or_404(Product, id=item['product_id']) for item in cart_items]
+#         # Calculate total amount from cart items
+#         total_amount = sum(item['price'] for item in cart_items)
+#         is_first_order = not Order.objects.filter(user=request.user).exists()
+#         products = [get_object_or_404(Product, id=item['product_id']) for item in cart_items]
 
-        try:
-            # Find the coupon if it exists and is within the valid date range
-            coupon = Coupon.objects.get(code=code, valid_from__lte=timezone.now(), valid_to__gte=timezone.now())
+#         try:
+#             # Find the coupon if it exists and is within the valid date range
+#             coupon = Coupon.objects.get(code=code, valid_from__lte=timezone.now(), valid_to__gte=timezone.now())
 
-            # Check if the coupon is valid
-            if coupon.is_valid(total_amount, products, is_first_order):
-                discount = 0
+#             # Check if the coupon is valid
+#             if coupon.is_valid(total_amount, products, is_first_order):
+#                 discount = 0
 
-                # Calculate discount based on coupon type
-                if coupon.is_percentage:
-                    discount = total_amount * (coupon.discount / 100)
-                else:
-                    discount = coupon.discount
+#                 # Calculate discount based on coupon type
+#                 if coupon.is_percentage:
+#                     discount = total_amount * (coupon.discount / 100)
+#                 else:
+#                     discount = coupon.discount
 
-                # Update coupon usage count if needed
-                coupon.used_count += 1
-                coupon.save()
+#                 # Update coupon usage count if needed
+#                 coupon.used_count += 1
+#                 coupon.save()
 
-                # Send successful response with discount details
-                return Response({
-                    "success": True,
-                    "discount": discount,
-                    "final_total": total_amount - discount,
-                    "message": f"Coupon '{code}' applied successfully."
-                }, status=status.HTTP_200_OK)
-            else:
-                # Invalid coupon usage for this cart or conditions not met
-                return Response({
-                    "success": False,
-                    "message": "Coupon not valid for cart items or does not meet requirements."
-                }, status=status.HTTP_400_BAD_REQUEST)
+#                 # Send successful response with discount details
+#                 return Response({
+#                     "success": True,
+#                     "discount": discount,
+#                     "final_total": total_amount - discount,
+#                     "message": f"Coupon '{code}' applied successfully."
+#                 }, status=status.HTTP_200_OK)
+#             else:
+#                 # Invalid coupon usage for this cart or conditions not met
+#                 return Response({
+#                     "success": False,
+#                     "message": "Coupon not valid for cart items or does not meet requirements."
+#                 }, status=status.HTTP_400_BAD_REQUEST)
 
-        except Coupon.DoesNotExist:
-            # Invalid coupon code
-            return Response({
-                "success": False,
-                "message": "Invalid coupon code."
-            }, status=status.HTTP_404_NOT_FOUND)
+#         except Coupon.DoesNotExist:
+#             # Invalid coupon code
+#             return Response({
+#                 "success": False,
+#                 "message": "Invalid coupon code."
+#             }, status=status.HTTP_404_NOT_FOUND)
         
 
-class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
-    serializer_class = CustomerSerializer
-    permission_classes = [IsAuthenticated]
+# class CustomerViewSet(viewsets.ModelViewSet):
+#     queryset = Customer.objects.all()
+#     serializer_class = CustomerSerializer
+#     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        # Set the user field to the currently authenticated user
-        serializer.save(user=self.request.user)
+#     def perform_create(self, serializer):
+#         # Set the user field to the currently authenticated user
+#         serializer.save(user=self.request.user)
 
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
+# class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+#     queryset = Category.objects.all()
+#     serializer_class = CategorySerializer
 
-    # Custom action to get TypesOfCategory by Category
-    @action(detail=True, methods=['get'])
-    def types(self, request, pk=None):
-        try:
-            # Retrieve the category by primary key (ID) or add additional filtering as needed
-            category = self.get_object()  # will automatically use pk
-            # Filter TypesOfCategory based on this category
-            types_of_category = TypesOfCategory.objects.filter(category=category)
-            serializer = TypeOFCategorySerializer(types_of_category, many=True)
-            return Response(serializer.data)
-        except Category.DoesNotExist:
-            return Response({'error': 'Category not found'}, status=404)
+#     # Custom action to get TypesOfCategory by Category
+#     @action(detail=True, methods=['get'])
+#     def types(self, request, pk=None):
+#         try:
+#             # Retrieve the category by primary key (ID) or add additional filtering as needed
+#             category = self.get_object()  # will automatically use pk
+#             # Filter TypesOfCategory based on this category
+#             types_of_category = TypesOfCategory.objects.filter(category=category)
+#             serializer = TypeOFCategorySerializer(types_of_category, many=True)
+#             return Response(serializer.data)
+#         except Category.DoesNotExist:
+#             return Response({'error': 'Category not found'}, status=404)
         
-class TypeOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = TypeOFCategorySerializer
+# class TypeOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+#     serializer_class = TypeOFCategorySerializer
 
-    def get_queryset(self):
-        category_id = self.kwargs.get('category_id')
-        return TypesOfCategory.objects.filter(category_id=category_id)
+#     def get_queryset(self):
+#         category_id = self.kwargs.get('category_id')
+#         return TypesOfCategory.objects.filter(category_id=category_id)
     
-class ProductViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = ProductSerializer
+# class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+#     serializer_class = ProductSerializer
 
-    def get_queryset(self):
-        type_of_category_id = self.kwargs.get('category_id')
-        return Product.objects.filter(category_id=type_of_category_id)
+#     def get_queryset(self):
+#         type_of_category_id = self.kwargs.get('category_id')
+#         return Product.objects.filter(category_id=type_of_category_id)
 
-class BrandViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Brand.objects.all()
-    serializer_class = BrandSerializer
+# class BrandViewSet(viewsets.ReadOnlyModelViewSet):
+#     queryset = Brand.objects.all()
+#     serializer_class = BrandSerializer
 
-class ProductDetailAPIView(APIView):
-    permission_classes = [AllowAny]
-    def get(self, request, sku):
-        product = get_object_or_404(Product, sku=sku)
-        # Pass the request context to the serializer
-        serializer = ProductSerializer(product, context={'request': request})
-        return Response(serializer.data)
+# class ProductDetailAPIView(APIView):
+#     permission_classes = [AllowAny]
+#     def get(self, request, sku):
+#         product = get_object_or_404(Product, sku=sku)
+#         # Pass the request context to the serializer
+#         serializer = ProductSerializer(product, context={'request': request})
+#         return Response(serializer.data)
 
-class ProductAPIView(APIView):
-    permission_classes = [AllowAny]
-    def get(self, request):
-        pass
+# class ProductAPIView(APIView):
+#     permission_classes = [AllowAny]
+#     def get(self, request):
+#         pass
 
 account_sid = config('TWILIO_ACCOUNT_SID')  # Replace with your Account SID
 auth_token =  config('TWILIO_AUTH_TOKEN')    # Replace with your Auth Token
