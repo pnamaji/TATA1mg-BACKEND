@@ -101,7 +101,7 @@ class UserProfile(models.Model):
     Bio = models.CharField(blank=True, max_length=200)
     medical_history = models.TextField(blank=True, null=True)
     is_professional = models.BooleanField(default=False, blank=True, null=True)
-    location = models.CharField(blank=True, max_length=200)
+    location = models.CharField(blank=True, max_length=200, null=True)
     last_updated = models.DateTimeField(auto_now=True)  # Automatically updates when the record is saved
     date_of_birth = models.DateField(blank=True, null=True)  # DOB
 
