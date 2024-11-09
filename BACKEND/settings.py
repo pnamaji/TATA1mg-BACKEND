@@ -42,12 +42,6 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 print(ALLOWED_HOSTS)
-TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NO = config('TWILIO_PHONE_NO')
-
-
-# Application definition
 
 INSTALLED_APPS = [
     'channels',
@@ -63,6 +57,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'Account',
+    'Health_Plans',
+    'Products',
 ]
 
 MIDDLEWARE = [
@@ -106,7 +102,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 SITE_ID = 1 
 
-# AUTH_USER_MODEL = 'Account.UserData'
+AUTH_USER_MODEL = 'auth.User'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases

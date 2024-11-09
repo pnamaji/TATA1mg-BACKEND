@@ -24,6 +24,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('account/', include('Account.urls')),
+    path('health-plans/', include('Health_Plans.urls')),
+    path('products/', include('Products.urls')),
     path('set_language/', set_language, name='set_language'),
 ]
 urlpatterns += i18n_patterns(
