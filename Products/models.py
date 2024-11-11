@@ -16,23 +16,25 @@ from django.utils.timezone import now
 from django.contrib.auth.models import User, BaseUserManager, AbstractBaseUser
 
         
+
 class Customer(models.Model):
     CHOICE_TYPE = [
         ('home', 'Home'),
         ('office', 'Office'),
         ('other', 'Other')
     ]
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer')
     full_name = models.CharField(max_length=100)
-    phone_number = models.IntegerField()
+    phone_number = models.CharField(max_length=15)  # Changed to CharField
     address = models.CharField(max_length=255)
-    address_type = models.CharField(max_length=10, choices=CHOICE_TYPE, default="Home")
+    address_type = models.CharField(max_length=10, choices=CHOICE_TYPE, default="home")
     custom_address_type = models.CharField(max_length=50, blank=True, null=True)  # Only used if "Other" is selected
     locality = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100)
-    zipcode = models.IntegerField()
+    zipcode = models.CharField(max_length=10)  # Changed to CharField
     state = models.CharField(max_length=100)
-    
+
     def __str__(self):
         return self.full_name
 

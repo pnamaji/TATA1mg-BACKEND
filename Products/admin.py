@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import Customer, Category, TypesOfCategory, Brand, Product, ProductImage, Order, OrderItem, Review, Prescription
+from .models import *
 
 # ==================== CUSTOMER MODEL ====================
 @admin.register(Customer)
@@ -9,6 +9,21 @@ class CustomerAdmin(admin.ModelAdmin):
     search_fields = ('full_name', 'phone_number', 'city', 'state')
     list_filter = ('city', 'state')
 
+
+# ==================== COUPON MODEL ====================
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount', 'is_percentage', 'valid_from', 'valid_to', 'used_count')
+    list_filter = ('is_percentage', 'valid_from', 'valid_to')
+    search_fields = ('code',)
+    ordering = ('-valid_from',)
+    readonly_fields = ('used_count',)
+
+    def get_readonly_fields(self, request, obj=None):
+        """Make 'code' field read-only after creation."""
+        if obj:
+            return self.readonly_fields + ('code',)
+        return self.readonly_fields
 # ==================== CATEGORY MODEL ====================
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
