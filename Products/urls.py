@@ -25,6 +25,16 @@ urlpatterns = [
 
     # Order Products
     path('api/create-order/', OrderCreateAPIView.as_view(), name='create_order_api'),
+    
+    path('api/categorytypewiseproducts/', CategoryTypeProductView.as_view(), name='Category Type Wise Products'),
+
+    path('api/categorywiseproducts/', CategoryProductView.as_view(), name='Category Wise Products'),
+
+    path('api/spotlight/', SpotlightProductListAPIView.as_view(), name='spotlite-product-list'),
+
+    path('api/healthconcerns/', HealthConcernAPIView.as_view(), name='Health Concerns Category list'),
+
+    path('api/collagen/', CollagenAPIView.as_view(), name='Collagen Products list'),
 ]
 if settings.DEBUG:  # Serve media files during development
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

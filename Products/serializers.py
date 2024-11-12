@@ -13,24 +13,33 @@ class ImageProductSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url)
         return None  # Return None if no thumbnail exists
     
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ['id', 'name']
+    
 class ProductSerializer(serializers.ModelSerializer):
     images = ImageProductSerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
     
     class Meta:
         model = Product
-        fields = ['category', 'categorytype', 'images',  'name', 'brand', 'description', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date']
+        fields = ['category', 'categorytype', 'images',  'name', 'brand', 'description', 'tags', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date']
 
 class CategorySerializer(serializers.ModelSerializer):
+    # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
+    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'description', 'img']
+        fields = ['id', 'name', 'tags', 'description', 'img']
 
 class TypeOFCategorySerializer(serializers.ModelSerializer):
+    # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
 
     class Meta:
         model = TypesOfCategory
-        fields = ['id', 'name', 'category', 'description', 'img']
+        fields = ['id', 'name', 'tags', 'category', 'description', 'img']
 
 class BrandSerializer(serializers.ModelSerializer):
 

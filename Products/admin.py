@@ -9,6 +9,12 @@ class CustomerAdmin(admin.ModelAdmin):
     search_fields = ('full_name', 'phone_number', 'city', 'state')
     list_filter = ('city', 'state')
 
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')       # Assuming the field name is 'name' instead of 'tag'
+    search_fields = ('name',)           # Add a comma to make it a tuple
+    list_filter = ('id', 'name')        # Ensure 'name' is the correct field
+
 
 # ==================== COUPON MODEL ====================
 @admin.register(Coupon)
@@ -32,11 +38,11 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ('name',)
 
 # ==================== TYPES OF CATEGORY MODEL ====================
-@admin.register(TypesOfCategory)
-class TypesOfCategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'description')
-    search_fields = ('name', 'category__name')
-    list_filter = ('category',)
+# @admin.register(TypesOfCategory)
+# class TypesOfCategoryAdmin(admin.ModelAdmin):
+#     list_display = ('name', 'category', 'description')
+#     search_fields = ('name', 'category__name')
+#     list_filter = ('category',)
 
 # ==================== BRAND MODEL ====================
 @admin.register(Brand)
@@ -45,31 +51,43 @@ class BrandAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 # ==================== PRODUCT MODEL ====================
-class ProductAdminForm(forms.ModelForm):
-    class Meta:
-        model = Product
-        fields = '__all__'
+# class ProductAdminForm(forms.ModelForm):
+#     class Meta:
+#         model = Product
+#         fields = '__all__'
+# 
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.fields['categorytype'].queryset = TypesOfCategory.objects.none()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['categorytype'].queryset = TypesOfCategory.objects.none()
-
-        if 'category' in self.data:
-            try:
-                category_id = int(self.data.get('category'))
-                self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category_id=category_id)
-            except (ValueError, TypeError):
-                pass
-        elif self.instance.pk:
-            self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category=self.instance.category)
+    #     if 'category' in self.data:
+    #         try:
+    #             category_id = int(self.data.get('category'))
+    #             self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category_id=category_id)
+    #         except (ValueError, TypeError):
+    #             pass
+    #     elif self.instance.pk:
+    #         self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category=self.instance.category)
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    form = ProductAdminForm
-    list_display = ('name', 'sku', 'category')
-    search_fields = ('name', 'sku')
-    list_filter = ('category',)
-    readonly_fields = ('created_at',)
+    list_display = ('id', 'name', 'get_categories', 'get_types_of_category')  # Use custom methods for ManyToMany fields
+
+    def get_categories(self, obj):
+        return ", ".join([category.name for category in obj.category.all()])
+    get_categories.short_description = 'Categories'
+
+    def get_types_of_category(self, obj):
+        return ", ".join([type_of_category.name for type_of_category in obj.categorytype.all()])
+    get_types_of_category.short_description = 'Types of Category'
+
+@admin.register(TypesOfCategory)
+class TypesOfCategoryAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'get_tags')  # Use custom method for ManyToMany fields
+
+    def get_tags(self, obj):
+        return ", ".join([tag.name for tag in obj.tags.all()])
+    get_tags.short_description = 'Tags'
 
 # ==================== PRODUCT IMAGE MODEL ====================
 @admin.register(ProductImage)

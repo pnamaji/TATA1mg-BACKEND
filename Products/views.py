@@ -13,6 +13,61 @@ from rest_framework.views import APIView
 from .models import *
 from .serializers import *
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
+class CollagenAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Filter products with the "Health Concerns" tag
+        collagen_category = Product.objects.filter(tags__name="collagen").distinct()
+
+        # Serializer the filtered category
+        serializer = ProductSerializer(collagen_category, many=True)
+        return Response(serializer.data)
+
+class HealthConcernAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Filter products with the "Health Concerns" tag
+        healthconcerns_category = Category.objects.filter(tags__name="Health Concerns").distinct()
+
+        # Serializer the filtered category
+        serializer = CategorySerializer(healthconcerns_category, many=True)
+        return Response(serializer.data)
+
+class SpotlightProductListAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Filter products with the "Spotlite" tag
+        spotlite_products = Product.objects.filter(tags__name="spotlight").distinct()
+        
+        # Serialize the filtered products
+        serializer = ProductSerializer(spotlite_products, many=True)
+        return Response(serializer.data)
+
+class CategoryProductView(APIView):
+    def get(self, request, format=None):
+        # Fetch all Category objects
+        category_types = Category.objects.all()
+
+        # Select a random category type
+        random_category_type = random.choice(category_types)
+
+        # Serialize the selected category and its products
+        serializer = CategorySerializer(random_category_type)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class CategoryTypeProductView(APIView):
+    def get(self, request, format=None):
+        # Fetch all TypesOfCategory objects
+        category_types = TypesOfCategory.objects.all()
+
+        # Select a random category type
+        random_category_type = random.choice(category_types)
+
+        # Serialize the selected category and its products
+        serializer = TypeOFCategorySerializer(random_category_type)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 # class OrderCreateAPIView(APIView):
 #     """
 #     API View to create an order and apply a coupon if available.
