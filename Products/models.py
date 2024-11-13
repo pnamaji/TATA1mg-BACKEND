@@ -91,6 +91,7 @@ class Product(models.Model):
     category = models.ManyToManyField(Category, related_name="products")  # Linking to Category model
     categorytype = models.ManyToManyField(TypesOfCategory, related_name="products")
     name = models.CharField(max_length=200)
+    quantity = models.CharField(max_length=100)
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
     tags = models.ManyToManyField(Tag, related_name='products')
     description = models.TextField()
