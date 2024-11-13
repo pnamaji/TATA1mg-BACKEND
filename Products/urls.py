@@ -35,6 +35,10 @@ urlpatterns = [
     path('api/healthconcerns/', HealthConcernAPIView.as_view(), name='Health Concerns Category list'),
 
     path('api/collagen/', CollagenAPIView.as_view(), name='Collagen Products list'),
+
+    path('api/personalcare/', PersonalCareAPIView.as_view(), name='Personal Care Categories list'),
+
+    path('api/popularcategories/', PopularCategoriesAPIView.as_view(), name='Popular Categories list'),
 ]
 if settings.DEBUG:  # Serve media files during development
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

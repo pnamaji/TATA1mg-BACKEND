@@ -28,9 +28,9 @@ urlpatterns = [
     path('products/', include('Products.urls')),
     path('set_language/', set_language, name='set_language'),
 ]
+if settings.DEBUG:  # Serve media files during development
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
 urlpatterns += i18n_patterns(
     path('set_language/', set_language, name='set_language'),  # Use set_language as a callable
 )
-
-if settings.DEBUG:  # Serve media files during development
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

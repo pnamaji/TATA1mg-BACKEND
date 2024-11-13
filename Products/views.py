@@ -17,6 +17,24 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+class PopularCategoriesAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Filter products with the "Health Concerns" tag
+        popular_category = Category.objects.filter(tags__name="popular catagories").distinct()
+
+        # Serializer the filtered category
+        serializer = CategorySerializer(popular_category, many=True)
+        return Response(serializer.data)
+
+class PersonalCareAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Filter products with the "Health Concerns" tag
+        personal_category = Category.objects.filter(tags__name="personal care").distinct()
+
+        # Serializer the filtered category
+        serializer = CategorySerializer(personal_category, many=True)
+        return Response(serializer.data)
+
 class CollagenAPIView(APIView):
     def get(self, request, *args, **kwargs):
         # Filter products with the "Health Concerns" tag
