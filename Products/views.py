@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -17,6 +18,7 @@ from .serializers import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+import random
 
 class ProductImageUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
@@ -34,15 +36,89 @@ class ProductImageUploadView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class PainReliefAndCoughAndColdModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
 
-# class PopularCategoriesAPIView(APIView):
-#     def get(self, request, *args, **kwargs):
-#         # Filter products with the "Health Concerns" tag
-#         popular_category = Category.objects.filter(tags__name="popular catagories").distinct()
+    def get_queryset(self):
 
-#         # Serializer the filtered category
-#         serializer = CategorySerializer(popular_category, many=True)
-#         return Response(serializer.data)
+        cache_key = 'pain_relief_cough_and_cold_random_products'
+        products = cache.get(cache_key)
+
+        if not products:
+            # Fetch products from both categories
+            cold_and_cough_products = Product.objects.filter(category__name="Cold & Cough").distinct()
+            pain_relief_products = Product.objects.filter(category__name="Pain Relief").distinct()
+
+            # Combine the products from both categories
+            combined_products = cold_and_cough_products | pain_relief_products
+
+            products = random.sample(list(combined_products), min(len(combined_products), 5))
+
+            cache.get(cache_key, products, 60 * 60 * 24)
+        return products
+    
+class ComboDealsProductsModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+
+        cache_key = 'combo_deals_random_products'
+        products = cache.get(cache_key)
+
+        if not products:
+
+            products = Product.objects.filter(tags__name="combo deals").distinct()
+            products = random.sample(list(products), min(len(products), 5))
+
+            cache.get(cache_key, products, 60 * 60 * 24)
+        return products
+    
+class SkinCareProductModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        # Cache key to store the random products for 24 hours
+        cache_key = 'skin_care_random_products'
+        products = cache.get(cache_key)
+
+        if not products:
+            # If cache is empty, select random products and cache them for 24 hours
+            products = Product.objects.filter(categorytype__name="Skin Care").distinct()
+            products = random.sample(list(products), min(len(products), 5))  #e.g., get 5 random products
+
+            # Store products in cache for 24 hours
+            cache.set(cache_key, products, 60 * 60 * 24)
+        return products
+    
+class SuperSavingDealsModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        # Cache key to store the random products for 24 hours
+        cache_key = 'popular_lab_tests_random_products'
+        products = cache.get(cache_key)
+
+        if not products:
+            # If cache is empty, select random products and cache them for 24 hours
+            products = Product.objects.filter(tags__name="popular lab tests").distinct()
+            products = random.sample(list(products), min(len(products), 5))  # e.g., get 5 random products
+
+            # Store products in cache for 24 hours
+            cache.set(cache_key, products, 60 * 60 * 24)
+
+        return products
+
+class PopularLabTestModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        return Product.objects.filter(tags__name="popular lab tests").distinct()
     
 class PopularCategoriesModelViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()

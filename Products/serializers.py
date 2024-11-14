@@ -18,15 +18,7 @@ class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ['id', 'name']
-    
-class ProductSerializer(serializers.ModelSerializer):
-    images = ImageProductSerializer(many=True, read_only=True)
-    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
-    
-    class Meta:
-        model = Product
-        fields = ['id', 'category', 'categorytype', 'images', 'name', 'brand', 'description', 'tags', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date']
-    
+      
 class CategorySerializer(serializers.ModelSerializer):
     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
@@ -67,6 +59,17 @@ class BrandSerializer(serializers.ModelSerializer):
         if obj.img:  # Ensure the image is associated
             return request.build_absolute_uri(obj.img.url)
         return None  # Return None if no image exists
+    
+class ProductSerializer(serializers.ModelSerializer):
+    images = ImageProductSerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
+    category = CategorySerializer(many=True)
+    categorytype = TypeOFCategorySerializer(many=True)
+    
+    class Meta:
+        model = Product
+        fields = ['id', 'category', 'categorytype', 'images', 'name', 'brand', 'description', 'tags', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date']
+  
 
 class CustomerSerializer(serializers.ModelSerializer):
     # Make user a read-only field
