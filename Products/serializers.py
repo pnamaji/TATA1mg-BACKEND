@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import *
     
 class ImageProductSerializer(serializers.ModelSerializer):
+    # img_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductImage
@@ -24,26 +25,26 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['category', 'categorytype', 'images',  'name', 'brand', 'description', 'tags', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date']
-
+        fields = ['id', 'category', 'categorytype', 'images', 'name', 'brand', 'description', 'tags', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date']
+    
 class CategorySerializer(serializers.ModelSerializer):
     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
-    img = serializers.ImageField(use_url=True)
+    # img = serializers.ImageField(use_url=True)
 
     class Meta:
         model = Category
         fields = ['id', 'name', 'tags', 'description', 'img']
 
-    # def get_img_url(self, obj):
-    #     request = self.context.get('request')
-    #     if obj.img:  # Ensure the image is associated
-    #         return request.build_absolute_uri(obj.img.url)
-    #     return None  # Return None if no image exists
+    def get_img_url(self, obj):
+        request = self.context.get('request')
+        if obj.img:  # Ensure the image is associated
+            return request.build_absolute_uri(obj.img.url)
+        return None  # Return None if no image exists
 
 class TypeOFCategorySerializer(serializers.ModelSerializer):
     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
-    img = serializers.ImageField(use_url=True)
+    # img = serializers.ImageField(use_url=True)
 
     class Meta:
         model = TypesOfCategory

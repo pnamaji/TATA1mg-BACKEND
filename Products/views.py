@@ -6,7 +6,8 @@ from datetime import timedelta
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, authentication_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -17,74 +18,138 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-class PopularCategoriesAPIView(APIView):
-    def get(self, request, *args, **kwargs):
-        # Filter products with the "Health Concerns" tag
-        popular_category = Category.objects.filter(tags__name="popular catagories").distinct()
+class ProductImageUploadView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]  # Restrict access to authenticated users only
 
-        # Serializer the filtered category
-        serializer = CategorySerializer(popular_category, many=True)
-        return Response(serializer.data)
+    def post(self, request, product_id, *args, **kwargs):
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
-class PersonalCareAPIView(APIView):
-    def get(self, request, *args, **kwargs):
-        # Filter products with the "Health Concerns" tag
-        personal_category = Category.objects.filter(tags__name="personal care").distinct()
-
-        # Serializer the filtered category
-        serializer = CategorySerializer(personal_category, many=True)
-        return Response(serializer.data)
-
-class CollagenAPIView(APIView):
-    def get(self, request, *args, **kwargs):
-        # Filter products with the "Health Concerns" tag
-        collagen_category = Product.objects.filter(tags__name="collagen").distinct()
-
-        # Serializer the filtered category
-        serializer = ProductSerializer(collagen_category, many=True)
-        return Response(serializer.data)
-
-class HealthConcernAPIView(APIView):
-    def get(self, request, *args, **kwargs):
-        # Filter products with the "Health Concerns" tag
-        healthconcerns_category = Category.objects.filter(tags__name="Health Concerns").distinct()
-
-        # Serializer the filtered category
-        serializer = CategorySerializer(healthconcerns_category, many=True)
-        return Response(serializer.data)
-
-class SpotlightProductListAPIView(APIView):
-    def get(self, request, *args, **kwargs):
-        # Filter products with the "Spotlite" tag
-        spotlite_products = Product.objects.filter(tags__name="spotlight").distinct()
+        serializer = ImageProductSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(product=product)  # Associate the image with the specified product
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         
-        # Serialize the filtered products
-        serializer = ProductSerializer(spotlite_products, many=True)
-        return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class CategoryProductView(APIView):
-    def get(self, request, format=None):
+# class PopularCategoriesAPIView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         # Filter products with the "Health Concerns" tag
+#         popular_category = Category.objects.filter(tags__name="popular catagories").distinct()
+
+#         # Serializer the filtered category
+#         serializer = CategorySerializer(popular_category, many=True)
+#         return Response(serializer.data)
+    
+class PopularCategoriesModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        return Category.objects.filter(tags__name="popular catagories").distinct()
+
+# class PersonalCareAPIView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         # Filter products with the "Health Concerns" tag
+#         personal_category = Category.objects.filter(tags__name="personal care").distinct()
+
+#         # Serializer the filtered category
+#         serializer = CategorySerializer(personal_category, many=True)
+#         return Response(serializer.data)
+    
+class PersonalCareModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        return Category.objects.filter(tags__name="personal care").distinct()
+
+# class CollagenAPIView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         # Filter products with the "Health Concerns" tag
+#         collagen_category = Product.objects.filter(tags__name="collagen").distinct()
+
+#         # Serializer the filtered category
+#         serializer = ProductSerializer(collagen_category, many=True)
+#         return Response(serializer.data)
+    
+class CollagenAPIView(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        return Product.objects.filter(tags__name="collagen").distinct()
+
+# class HealthConcernAPIView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         # Filter products with the "Health Concerns" tag
+#         healthconcerns_category = Category.objects.filter(tags__name="Health Concerns").distinct()
+
+#         # Serializer the filtered category
+#         serializer = CategorySerializer(healthconcerns_category, many=True)
+#         return Response(serializer.data)
+    
+class HealthConcernAPIView(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        """
+        Override the get_queryset method to filter products by the 'Spotlite' tag.
+        """
+        return Category.objects.filter(tags__name="Health Concerns").distinct()
+    
+class SpotlightProductViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        """
+        Override the get_queryset method to filter products by the 'Spotlite' tag.
+        """
+        return Product.objects.filter(tags__name="spotlight").distinct()
+
+# class SpotlightProductListAPIView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         # Filter products with the "Spotlite" tag
+#         spotlite_products = Product.objects.filter(tags__name="spotlight").distinct()
+        
+#         # Serialize the filtered products
+#         serializer = ProductSerializer(spotlite_products, many=True)
+#         return Response(serializer.data)
+    
+class CategoryProductView(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
         # Fetch all Category objects
         category_types = Category.objects.all()
 
         # Select a random category type
         random_category_type = random.choice(category_types)
 
-        # Serialize the selected category and its products
+        # Serializer the selected category and its products
         serializer = CategorySerializer(random_category_type)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Category.objects.filter(id=random_category_type.id)
+    
+class CategoryTypeProductView(viewsets.ReadOnlyModelViewSet):
+    queryset = TypesOfCategory.objects.all()
+    serializer_class = TypeOFCategorySerializer
 
-class CategoryTypeProductView(APIView):
-    def get(self, request, format=None):
+    def get_queryset(self):
         # Fetch all TypesOfCategory objects
         category_types = TypesOfCategory.objects.all()
 
         # Select a random category type
         random_category_type = random.choice(category_types)
 
-        # Serialize the selected category and its products
-        serializer = TypeOFCategorySerializer(random_category_type)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Return a queryset that contains just the random category
+        return TypesOfCategory.objects.filter(id=random_category_type.id)
+
 
 # class OrderCreateAPIView(APIView):
 #     """
