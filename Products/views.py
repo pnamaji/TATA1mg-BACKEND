@@ -20,6 +20,64 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 
+class DealsOfTheDayProductsModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+
+        cache_key = 'deals_of_the_day_random_products'
+        products = cache.get(cache_key)
+
+        if not products:
+
+            products = Product.objects.filter(tags__name="deals of the day").distinct()
+            products = random.sample(list(products), min(len(products), 5))
+
+            cache.get(cache_key, products, 60 * 60 * 24)
+        return products
+
+class AyurvedaTopBrandsModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+
+    def get_queryset(self):
+        return Brand.objects.filter(tags__name="top ayurveda brand").distinct()
+
+class ExploreSomethingNewProductsModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+
+        cache_key = 'something_new_random_products'
+        products = cache.get(cache_key)
+
+        if not products:
+
+            products = Product.objects.filter(tags__name="something new").distinct()
+            products = random.sample(list(products), min(len(products), 5))
+
+            cache.get(cache_key, products, 60 * 60 * 24)
+        return products
+
+class TrendingProductsModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+
+        cache_key = 'trending_random_products'
+        products = cache.get(cache_key)
+
+        if not products:
+
+            products = Product.objects.filter(tags__name="trending").distinct()
+            products = random.sample(list(products), min(len(products), 5))
+
+            cache.get(cache_key, products, 60 * 60 * 24)
+        return products
+
 class ProductImageUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsAuthenticated]  # Restrict access to authenticated users only
