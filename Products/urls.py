@@ -19,6 +19,10 @@ router.register(r'api/supersavingdeals', SuperSavingDealsModelViewSet, basename=
 router.register(r'api/skincareproducts', SkinCareProductModelViewSet, basename='Skin Care Type of Category Products List')
 router.register(r'api/combodealsproducts', ComboDealsProductsModelViewSet, basename='Combo Deals Tag Products List')
 router.register(r'api/painrelief&coughandcold', PainReliefAndCoughAndColdModelViewSet, basename="Pain Relief & Cough and Cold Category Products")
+router.register(r'api/trendingproducts', TrendingProductsModelViewSet, basename="Trending Products")
+router.register(r'api/exploresomethingnewproducts', ExploreSomethingNewProductsModelViewSet, basename="Explore Something New Products")
+router.register(r'api/topayurvedabrands', AyurvedaTopBrandsModelViewSet, basename="Top Ayurveda Brands")
+router.register(r'api/dealsofthedayproducts', DealsOfTheDayProductsModelViewSet, basename="Deals of the Day Products")
 router.register(r'brands', BrandViewSet)
 router.register(r'address', CustomerViewSet)
 
