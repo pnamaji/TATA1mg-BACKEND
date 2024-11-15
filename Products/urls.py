@@ -24,7 +24,11 @@ router.register(r'address', CustomerViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+
+    # view Type-of-Category
     path('category/<int:category_id>/types/', TypeOfCategoryAPIView.as_view(), name='types_of_category'),
+    
+    # load products 
     path('category/type/<int:type_of_category_id>/products/', ProductAPIView.as_view(), name='products_by_type'),
 
     # Get SKU to all data of product
@@ -37,6 +41,16 @@ urlpatterns = [
     path('api/create-order/', OrderCreateAPIView.as_view(), name='create_order_api'),
 
     path('api/<int:product_id>/upload-image/', ProductImageUploadView.as_view(), name='upload-product-image'),
+
+    # Cancel order
+    path('order/cancel/<int:order_id>/', OrderCancelAPIView.as_view(), name='order-cancel'),
+
+    # view all orders
+    path('api/orders/', OrderListView.as_view(), name='order-list'),
+
+    # view order by providing specific id
+    path('api/orders/<int:id>/', OrderDetailView.as_view(), name='order-detail'),
+
 ]
 if settings.DEBUG:  # Serve media files during development
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, authentication_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework import generics, permissions
 from .models import *
 from .serializers import *
 
@@ -228,9 +229,7 @@ class CategoryTypeProductView(viewsets.ReadOnlyModelViewSet):
 
 
 # class OrderCreateAPIView(APIView):
-#     """
-#     API View to create an order and apply a coupon if available.
-#     """
+#     permission_classes = [IsAuthenticated]
 
 #     def post(self, request):
 #         user = request.user
@@ -239,63 +238,40 @@ class CategoryTypeProductView(viewsets.ReadOnlyModelViewSet):
 #         shipping_address = request.data.get('shipping_address', '')
 
 #         if not cart_items:
-#             return Response(
-#                 {"success": False, "message": "No items in cart."},
-#                 status=status.HTTP_400_BAD_REQUEST
-#             )
+#             return Response({"success": False, "message": "No items in cart."}, status=status.HTTP_400_BAD_REQUEST)
 
 #         total_price = 0
-#         order = Order.objects.create(
-#             user=user,
-#             total_price=0,  # We'll update it after calculating discounts
-#             shipping_address=shipping_address,
-#             status='pending'
-#         )
+#         order = Order.objects.create(user=user, total_price=0, shipping_address=shipping_address, status='pending')
 
-#         # Create OrderItems and calculate total
+#         # Create OrderItems
 #         for item in cart_items:
-#             product = get_object_or_404(Product, id=item['product_id'])
-#             quantity = item['quantity']
-#             price = product.price * quantity
-#             total_price += price
+#             try:
+#                 product = Product.objects.get(id=item['product_id'])
+#                 quantity = item['quantity']
+#                 price = product.price * quantity
+#                 total_price += price
 
-#             OrderItem.objects.create(
-#                 order=order,
-#                 product=product,
-#                 quantity=quantity,
-#                 price=price
-#             )
+#                 OrderItem.objects.create(order=order, product=product, quantity=quantity, price=price)
+#             except Product.DoesNotExist:
+#                 return Response({"success": False, "message": f"Product ID {item['product_id']} not found."}, status=status.HTTP_404_NOT_FOUND)
 
 #         discount = 0
-#         # Apply coupon if provided
 #         if coupon_code:
 #             try:
-#                 coupon = Coupon.objects.get(
-#                     code=coupon_code,
-#                     valid_from__lte=timezone.now(),
-#                     valid_to__gte=timezone.now()
-#                 )
-#                 # Assuming `is_valid` method in Coupon model handles all conditions
+#                 coupon = Coupon.objects.get(code=coupon_code)
 #                 if coupon.is_valid(total_price, cart_items, is_first_order=not Order.objects.filter(user=user).exists()):
-#                     discount = coupon.get_discount(total_price)
+#                     discount = coupon.apply_discount(total_price)
 #                     order.total_price = total_price - discount
 #                     coupon.used_count += 1
 #                     coupon.save()
 #                 else:
-#                     return Response(
-#                         {"success": False, "message": "Coupon conditions not met."},
-#                         status=status.HTTP_400_BAD_REQUEST
-#                     )
+#                     return Response({"success": False, "message": "Coupon conditions not met."}, status=status.HTTP_400_BAD_REQUEST)
 #             except Coupon.DoesNotExist:
-#                 return Response(
-#                     {"success": False, "message": "Invalid coupon code."},
-#                     status=status.HTTP_404_NOT_FOUND
-#                 )
+#                 return Response({"success": False, "message": "Invalid coupon code."}, status=status.HTTP_404_NOT_FOUND)
 #         else:
 #             order.total_price = total_price
 
 #         order.save()
-
 #         return Response({
 #             "success": True,
 #             "order_id": order.id,
@@ -304,6 +280,7 @@ class CategoryTypeProductView(viewsets.ReadOnlyModelViewSet):
 #             "final_total": order.total_price,
 #             "message": "Order created successfully."
 #         }, status=status.HTTP_201_CREATED)
+
 
 class OrderCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -318,19 +295,27 @@ class OrderCreateAPIView(APIView):
             return Response({"success": False, "message": "No items in cart."}, status=status.HTTP_400_BAD_REQUEST)
 
         total_price = 0
-        order = Order.objects.create(user=user, total_price=0, shipping_address=shipping_address, status='pending')
+        order = Order.objects.create(
+            user=user, total_price=0, shipping_address=shipping_address, status='pending'
+        )
 
         # Create OrderItems
         for item in cart_items:
             try:
                 product = Product.objects.get(id=item['product_id'])
                 quantity = item['quantity']
-                price = product.price * quantity
-                total_price += price
 
-                OrderItem.objects.create(order=order, product=product, quantity=quantity, price=price)
+                # Use `discounted_price` if available; otherwise, fallback to `selling_price`
+                product_price = product.discounted_price if product.discounted_price else product.selling_price
+                item_total_price = product_price * quantity
+                total_price += item_total_price
+
+                OrderItem.objects.create(order=order, product=product, quantity=quantity, price=item_total_price)
             except Product.DoesNotExist:
-                return Response({"success": False, "message": f"Product ID {item['product_id']} not found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({
+                    "success": False,
+                    "message": f"Product ID {item['product_id']} not found."
+                }, status=status.HTTP_404_NOT_FOUND)
 
         discount = 0
         if coupon_code:
@@ -342,9 +327,15 @@ class OrderCreateAPIView(APIView):
                     coupon.used_count += 1
                     coupon.save()
                 else:
-                    return Response({"success": False, "message": "Coupon conditions not met."}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({
+                        "success": False,
+                        "message": "Coupon conditions not met."
+                    }, status=status.HTTP_400_BAD_REQUEST)
             except Coupon.DoesNotExist:
-                return Response({"success": False, "message": "Invalid coupon code."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({
+                    "success": False,
+                    "message": "Invalid coupon code."
+                }, status=status.HTTP_404_NOT_FOUND)
         else:
             order.total_price = total_price
 
@@ -359,6 +350,53 @@ class OrderCreateAPIView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class OrderCancelAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        try:
+            # Fetch the order to be canceled
+            order = Order.objects.get(id=order_id, user=request.user)
+
+            # Check if the order is already canceled or completed
+            if order.status in ['canceled', 'completed']:
+                return Response({
+                    "success": False,
+                    "message": "Order cannot be canceled as it is already processed."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Serialize and update the order status to "canceled"
+            serializer = OrderCancelSerializer(order, data={}, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Order canceled successfully.",
+                    "order": serializer.data
+                }, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Order.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Order not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+class OrderListView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Fetch orders only for the logged-in user
+        return Order.objects.filter(user=self.request.user).order_by('-order_date')
+
+class OrderDetailView(generics.RetrieveAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user)
 
 class CouponApplyAPIView(APIView):
     """
@@ -498,7 +536,7 @@ class TypeOfCategoryAPIView(APIView):
 
     def get(self, request, category_id):
         # Fetch types based on category_id
-        types_of_category = TypesOfCategory.objects.filter(category_id=category_id)
+        types_of_category = TypesOfCategory.objects.filter(id=category_id)
         serializer = TypeOFCategorySerializer(types_of_category, many=True)
         return Response(serializer.data)
 
@@ -509,6 +547,6 @@ class ProductAPIView(APIView):
 
     def get(self, request, type_of_category_id):
         # Fetch products based on type_of_category_id
-        products = Product.objects.filter(categorytype_id=type_of_category_id)
+        products = Product.objects.filter(id=type_of_category_id)
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
