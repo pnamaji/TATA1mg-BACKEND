@@ -4,14 +4,34 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from Products.models import *
 
+# class Category(models.Model):
+#     name = models.CharField(max_length=100, unique=True)  # e.g., Diabetes, Mental Wellness
+#     image = models.URLField(max_length=200, blank=True, null=True)  # URL field for the image
+#     description = models.TextField(blank=True, null=True)
+#     slug = models.SlugField(max_length=100, unique=True, blank=True)  # SEO-friendly URL field
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
 
+#     # parent = models.ForeignKey(
+#     #     'self', null=True, blank=True, related_name='subcategories', on_delete=models.CASCADE
+#     # )  # For hierarchical categories
+
+#     class Meta:
+#         ordering = ['name']  # Orders categories alphabetically by default
+
+#     def __str__(self):
+#         return self.name
+
+#     def save(self, *args, **kwargs):
+#         if not self.slug:
+#             self.slug = slugify(self.name)  # Auto-generates slug from name if not provided
+#         super(Category, self).save(*args, **kwargs)
 
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)  # e.g., Diabetes, Mental Wellness
-    image = models.URLField(max_length=200, blank=True, null=True)  # URL field for the image
+    image = models.ImageField(upload_to='category_images/', blank=True, null=True)  # ImageField to upload from PC
     description = models.TextField(blank=True, null=True)
-    slug = models.SlugField(max_length=100, unique=True, blank=True)  # SEO-friendly URL field
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -26,8 +46,6 @@ class Category(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)  # Auto-generates slug from name if not provided
         super(Category, self).save(*args, **kwargs)
 
 

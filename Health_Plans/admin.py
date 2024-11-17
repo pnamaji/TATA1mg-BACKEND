@@ -5,7 +5,7 @@ from .models import *
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'created_at')  # Display name, slug, and created date
+    list_display = ('name', 'created_at')  # Display name, slug, and created date
     search_fields = ('name',)  # Enable search by name
     ordering = ('name',)  # Order alphabetically by name
 
