@@ -49,10 +49,11 @@ class TypeOFCategorySerializer(serializers.ModelSerializer):
         return None  # Return None if no image exists
 
 class BrandSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
 
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'description', 'img']
+        fields = ['id', 'name', 'description', 'img', 'tags']
 
     def get_img_url(self, obj):
         request = self.context.get('request')
@@ -63,12 +64,13 @@ class BrandSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     images = ImageProductSerializer(many=True, read_only=True)
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
+    # brand = BrandSerializer(many=True)
     category = CategorySerializer(many=True)
     categorytype = TypeOFCategorySerializer(many=True)
     
     class Meta:
         model = Product
-        fields = ['id', 'category', 'categorytype', 'images', 'name', 'brand', 'description', 'tags', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date']
+        fields = ['id', 'name', 'description', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date', 'images', 'brand', 'tags', 'category', 'categorytype']
   
 
 class CustomerSerializer(serializers.ModelSerializer):

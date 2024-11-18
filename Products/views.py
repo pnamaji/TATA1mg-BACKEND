@@ -20,6 +20,94 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 
+class Minimum33PercentOffProductsList(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        try:
+            return Product.objects.filter(
+                discount_percentage__gte="33"
+            ).distinct()
+        except Product.DoesNotExist:
+            return Product.objects.none()  # Return an empty queryset if no products are found
+        except Exception as e:
+            # Log the error and return an empty queryset
+            print(f"Error fetching products: {e}")
+            return Product.objects.none()
+
+class HomeopathyWomensHealthProductsList(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        try:
+            return Product.objects.filter(
+                tags__name="homeopathy"
+            ).filter(
+                tags__name="women"
+            ).filter(
+                tags__name="Health Care"
+            ).distinct()
+        except Product.DoesNotExist:
+            return Product.objects.none()  # Return an empty queryset if no products are found
+        except Exception as e:
+            # Log the error and return an empty queryset
+            print(f"Error fetching products: {e}")
+            return Product.objects.none()
+
+class HealthCareDevicesTopBrandsList(viewsets.ReadOnlyModelViewSet):
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+
+    def get_queryset(self):
+        try:
+            return Brand.objects.filter(
+                tags__name="top brands"
+            ).filter(
+                tags__name="healthcare devices"
+            ).distinct()
+        except Brand.DoesNotExist:
+            return Brand.objects.none()  # Return an empty queryset if no products are found
+        except Exception as e:
+            # Log the error and return an empty queryset
+            print(f"Error fetching brands: {e}")
+            return Brand.objects.none()
+
+class ZanduTopSellersProducts(viewsets.ReadOnlyModelViewSet):
+    # queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        try:
+            return Product.objects.filter(
+                tags__name="top seller", 
+                brand__name="Zandu"
+            ).distinct()
+        except Product.DoesNotExist:
+            return Product.objects.none()  # Return an empty queryset if no products are found
+        except Exception as e:
+            # Log the error and return an empty queryset
+            print(f"Error fetching products: {e}")
+            return Product.objects.none()
+
+class TATA1mgHealthProducts(viewsets.ReadOnlyModelViewSet):
+    # queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        try:
+            return Product.objects.filter(
+                tags__name="Health Care", 
+                brand__name="TATA_1mg"
+            ).distinct()
+        except Product.DoesNotExist:
+            return Product.objects.none()  # Return an empty queryset if no products are found
+        except Exception as e:
+            # Log the error and return an empty queryset
+            print(f"Error fetching products: {e}")
+            return Product.objects.none()
+
 class DealsOfTheDayProductsModelViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -42,7 +130,7 @@ class AyurvedaTopBrandsModelViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BrandSerializer
 
     def get_queryset(self):
-        return Brand.objects.filter(tags__name="top ayurveda brand").distinct()
+        return Brand.objects.filter(tags__name="top ayurvedic brands").distinct()
 
 class ExploreSomethingNewProductsModelViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()

@@ -75,6 +75,7 @@ def file_upload_to_brand(instance, filename):
 class Brand(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
+    tags = models.ManyToManyField(Tag, related_name='brands_tags')
     img = models.ImageField(upload_to=file_upload_to_brand, null=True, blank=True)
 
     def __str__(self):
@@ -92,15 +93,15 @@ class Product(models.Model):
     categorytype = models.ManyToManyField(TypesOfCategory, related_name="products")
     name = models.CharField(max_length=200)
     quantity = models.CharField(max_length=100)
-    brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, default=1)
     tags = models.ManyToManyField(Tag, related_name='products')
     description = models.TextField()
-    selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    selling_price = models.DecimalField(max_digits=10, decimal_places=0)
     ad = models.BooleanField(blank=True, null=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=0, null=True, blank=True)
-    discounted_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    discounted_price = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
     prescription_required = models.BooleanField(null=True, blank=True, default=False)
-    stock = models.IntegerField(default=0)
+    stock = models.IntegerField(default=0, null=True, blank=True)
     sku = models.CharField(max_length=100, unique=True, blank=True, editable=False)  # SKU field
     expiry_date = models.DateField(blank=True, null=True)
     delivery_days = models.IntegerField(default=3)  # Admin se set hone wala field
@@ -149,13 +150,34 @@ class Product(models.Model):
     
     def get_share_link(self):
         return f"/Products/{self.sku}"
+       
+class PackageSize(models.Model):
+    product = models.ForeignKey(Product, related_name='package_size', on_delete=models.CASCADE)
+    quantity = models.CharField(max_length=100)
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=0, null=True, blank=True)
+    discounted_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    stock = models.IntegerField(default=0, null=True, blank=True)
+
+    def __str__(self):
+        return self.quantity
+    
+    def save(self, *args, **kwargs):        
+        if self.selling_price and self.discount_percentage:
+            # Calculate the discounted price based on percentage
+            self.discounted_price = self.selling_price - (self.selling_price * self.discount_percentage / 100)
+        elif self.selling_price and self.discounted_price:
+            # Calculate the discount percentage based on price
+            self.discount_percentage = ((self.selling_price - self.discounted_price) / self.selling_price) * 100
+        super().save(*args, **kwargs)
 
 class ProductImage(models.Model):
+    # package_size = models.ForeignKey(PackageSize, related_name='productImage', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to=file_upload_to_products)
     
     def __str__(self):
-        return f"Image for {self.product.name}"
+        return f"Image for {self.package_size.name}"
     
     def image_preview(self):
         if self.image:

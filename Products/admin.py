@@ -89,11 +89,21 @@ class TypesOfCategoryAdmin(admin.ModelAdmin):
         return ", ".join([tag.name for tag in obj.tags.all()])
     get_tags.short_description = 'Tags'
 
+# ==================== PRODUCT PACKAGE SIZE MODEL ====================
+@admin.register(PackageSize)
+class PackageSize(admin.ModelAdmin):
+    list_display = ('id', 'product', 'quantity', 'selling_price', 'discount_percentage', 'discounted_price', 'stock')
+
 # ==================== PRODUCT IMAGE MODEL ====================
-@admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ('product',)
-    search_fields = ('product__name',)
+    list_display = ('product', 'image_preview')  # Use valid fields or methods
+
+    def package_size(self, obj):
+        return obj.product.quantity  # Access the 'quantity' field of the related PackageSize
+
+    package_size.short_description = 'Package Size'
+
+admin.site.register(ProductImage, ProductImageAdmin)
 
 # ==================== ORDER MODEL ====================
 @admin.register(Order)
