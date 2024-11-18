@@ -512,7 +512,7 @@ class OrderCancelAPIView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Serialize and update the order status to "canceled"
-            serializer = OrderCancelSerializer(order, data={}, partial=True)
+            serializer = OrderSerializer(order, data={}, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({

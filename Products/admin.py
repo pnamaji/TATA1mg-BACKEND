@@ -2,6 +2,11 @@ from django.contrib import admin
 from django import forms
 from .models import *
 
+@admin.register(Ad)
+class AdAdmin(admin.ModelAdmin):
+    list_display = ('title', 'is_active', 'start_date', 'end_date')
+    list_filter = ('is_active', 'start_date', 'end_date')
+
 # ==================== CUSTOMER MODEL ====================
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):

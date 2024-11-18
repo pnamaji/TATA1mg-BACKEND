@@ -70,7 +70,7 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date', 'images', 'brand', 'tags', 'category', 'categorytype']
+        fields = ['id', 'name', 'quantity', 'description', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date', 'images', 'brand', 'tags', 'category', 'categorytype']
   
 
 class CustomerSerializer(serializers.ModelSerializer):

@@ -27,7 +27,7 @@ router.register(r'api/tata1mg-health-products', TATA1mgHealthProducts, basename=
 router.register(r'api/zandu-top-seller-products', ZanduTopSellersProducts, basename="Zandu Top Seller Products")
 router.register(r'api/healthcare-devices-top-brands', HealthCareDevicesTopBrandsList, basename="Healthcare Devices top Brands")
 router.register(r'api/homeopathy-womens-health', HomeopathyWomensHealthProductsList, basename="Homeopathy Women's health Products")
-router.register(r'api/minimum-33%-off-or-more-off-products', Minimum33PercentOffProductsList, basename="Minimum 33 or more percent off Products")
+router.register(r'api/minimum-33-off-products', Minimum33PercentOffProductsList, basename="Minimum 33 or more percent off Products")
 router.register(r'brands', BrandViewSet)
 router.register(r'address', CustomerViewSet)
 

@@ -9,13 +9,37 @@ from django.utils.text import slugify
 import string
 from django.contrib.auth import get_user_model
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from django.conf import settings
 from django.utils.timezone import now
+from django.core.exceptions import ValidationError
 # from phonenumber_field.modelfields import PhoneNumberField
 from django.contrib.auth.models import User, BaseUserManager, AbstractBaseUser
 
         
+class Ad(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    image = models.ImageField(upload_to='ads/')
+    link = models.URLField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+
+    def is_active_now(self):
+        return self.start_date <= date.today() <= self.end_date
+    
+    def save(self, *args, **kwargs):
+        self.is_active = self.is_active_now()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        if self.end_date < self.start_date:
+            raise ValidationError("End date cannot be earlier than start date.")
+        super().clean()
+
+    def __str__(self):
+        return self.title
 
 class Customer(models.Model):
     CHOICE_TYPE = [
