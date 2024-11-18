@@ -5,7 +5,7 @@ from .models import *
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'image', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'image', 'created_at', 'updated_at']
 
 
 class ExperienceSerializer(serializers.ModelSerializer):
