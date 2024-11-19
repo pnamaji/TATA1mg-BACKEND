@@ -28,6 +28,7 @@ router.register(r'api/zandu-top-seller-products', ZanduTopSellersProducts, basen
 router.register(r'api/healthcare-devices-top-brands', HealthCareDevicesTopBrandsList, basename="Healthcare Devices top Brands")
 router.register(r'api/homeopathy-womens-health', HomeopathyWomensHealthProductsList, basename="Homeopathy Women's health Products")
 router.register(r'api/minimum-33-off-products', Minimum33PercentOffProductsList, basename="Minimum 33 or more percent off Products")
+router.register(r'api/product-highlights', ProductHighlightViewSet, basename="Product Highlights")
 router.register(r'brands', BrandViewSet)
 router.register(r'address', CustomerViewSet)
 

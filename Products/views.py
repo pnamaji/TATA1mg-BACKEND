@@ -21,6 +21,10 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 
+class ProductHighlightViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ProductHighlight.objects.all()
+    serializer_class = ProductHighlightSerializer
+
 class Minimum33PercentOffProductsList(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer

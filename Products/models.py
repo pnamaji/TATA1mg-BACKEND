@@ -120,12 +120,11 @@ class Product(models.Model):
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, default=1)
     tags = models.ManyToManyField(Tag, related_name='products')
     description = models.TextField()
+    image = models.ImageField(upload_to=file_upload_to_products, blank=True, null=True)
     selling_price = models.DecimalField(max_digits=10, decimal_places=0)
-    ad = models.BooleanField(blank=True, null=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=0, null=True, blank=True)
     discounted_price = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
     prescription_required = models.BooleanField(null=True, blank=True, default=False)
-    stock = models.IntegerField(default=0, null=True, blank=True)
     sku = models.CharField(max_length=100, unique=True, blank=True, editable=False)  # SKU field
     expiry_date = models.DateField(blank=True, null=True)
     delivery_days = models.IntegerField(default=3)  # Admin se set hone wala field
@@ -174,6 +173,14 @@ class Product(models.Model):
     
     def get_share_link(self):
         return f"/Products/{self.sku}"
+    
+class ProductHighlight(models.Model):
+    Product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_highlight')
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+
+    def __str__(self):
+        return self.title
        
 class PackageSize(models.Model):
     product = models.ForeignKey(Product, related_name='package_size', on_delete=models.CASCADE)
@@ -196,7 +203,7 @@ class PackageSize(models.Model):
         super().save(*args, **kwargs)
 
 class ProductImage(models.Model):
-    # package_size = models.ForeignKey(PackageSize, related_name='productImage', on_delete=models.CASCADE)
+    package_size = models.ForeignKey(PackageSize, related_name='productImage', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to=file_upload_to_products)
     

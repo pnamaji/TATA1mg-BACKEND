@@ -8,11 +8,13 @@ class ImageProductSerializer(serializers.ModelSerializer):
         model = ProductImage
         fields = ['image']
 
-    def get_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.image:  # Ensure the image is associated
-            return request.build_absolute_uri(obj.image.url)
-        return None  # Return None if no thumbnail exists
+    def get_image(self, obj):
+        if obj.image:  # Ensure the image exists
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url  # Fallback if no request context
+        return None  # If no image is uploaded
     
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -62,7 +64,6 @@ class BrandSerializer(serializers.ModelSerializer):
         return None  # Return None if no image exists
     
 class ProductSerializer(serializers.ModelSerializer):
-    images = ImageProductSerializer(many=True, read_only=True)
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
     # brand = BrandSerializer(many=True)
     category = CategorySerializer(many=True)
@@ -70,8 +71,12 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'quantity', 'description', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date', 'images', 'brand', 'tags', 'category', 'categorytype']
+        fields = ['id', 'name', 'quantity', 'image',  'description', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
   
+class ProductHighlightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductHighlight
+        fields = ('title', 'description')
 
 class CustomerSerializer(serializers.ModelSerializer):
     # Make user a read-only field
