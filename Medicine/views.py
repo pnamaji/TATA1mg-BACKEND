@@ -7,6 +7,129 @@ from .models import *
 from .serializers import *
 from .serializers import MedicineSerializer
 
+class FactBoxDetailFilterView(generics.ListAPIView):
+
+    serializer_class = FactBoxSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = FactBox.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class QuickTipDetailFilterView(generics.ListAPIView):
+
+    serializer_class = QuickTipSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = QuickTip.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class MissedDoseDetailFilterView(generics.ListAPIView):
+
+    serializer_class = MissedDoseSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = MissedDose.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class SafetyAdviceDetailFilterView(generics.ListAPIView):
+
+    serializer_class = SafetyAdviceSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = SafetyAdvice.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class HowToDrugWorksDetailFilterView(generics.ListAPIView):
+
+    serializer_class = HowDrugWorkSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = HowDrugWork.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class HowToUseDetailFilterView(generics.ListAPIView):
+
+    serializer_class = HowToUseSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = HowToUse.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class SideEffectsDetailFilterView(generics.ListAPIView):
+
+    serializer_class = SideEffectSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = SideEffect.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class UseAndBenefitsDetailFilterView(generics.ListAPIView):
+
+    serializer_class = UseCaseSerializer
+    
+    def get_queryset(self):
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = UseCase.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
+class OverviewDetailFilterView(generics.ListAPIView):
+    """
+    API view to filter PrizeAndMedicineDetail by the `medicine_id`.
+    """
+    serializer_class = OverviewSerializer
+    
+    def get_queryset(self):
+        """
+        Optionally restrict the returned PrizeAndMedicineDetail based on
+        the `medicine_id` provided in the URL.
+        """
+        medicine_id = self.kwargs.get('medicine_id')
+        queryset = Overview.objects.all()
+
+        if medicine_id:
+            queryset = queryset.filter(medicine_id=medicine_id)
+        
+        return queryset
+
 class PrizeAndMedicineDetailFilterView(generics.ListAPIView):
     """
     API view to filter PrizeAndMedicineDetail by the `medicine_id`.

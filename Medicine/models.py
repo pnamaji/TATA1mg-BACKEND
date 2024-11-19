@@ -164,12 +164,13 @@ class Benefit(models.Model):
     description = models.TextField()
 
 class SideEffect(models.Model):
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='sideeffect')
     title = models.TextField()
     description = models.TextField(blank=True, null=True)
 
 
     def __str__(self):
-        return self.name
+        return self.title
     
 class HowToUse(models.Model):
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='how_to_use')
@@ -177,9 +178,20 @@ class HowToUse(models.Model):
 
     def __str__(self):
         return self.description
-    
-class HowDrugWorks(models.Model):
+
+
+
+
+class HowDrugWork(models.Model):
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='how_drug_works')
+    description = models.TextField()
+
+    def __str__(self):
+        return self.description     
+
+    
+class SafetyAdvice(models.Model):
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='safety_advice')
     alcohol = models.CharField(max_length=100)
     a_description = models.TextField()
     pregnancy = models.CharField(max_length=100)
@@ -195,7 +207,7 @@ class HowDrugWorks(models.Model):
 
     def __str__(self):
         return self.alcohol
-    
+
 class MissedDose(models.Model):
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='missed_dose')
     description = models.TextField()
@@ -204,8 +216,10 @@ class MissedDose(models.Model):
         return self.description
     
 class QuickTip(models.Model):
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='quick_tips')
     tip_text = models.TextField()
-
+    link = models.URLField(blank=True, null=True)
+    
     def __str__(self):
         return self.tip_text
     

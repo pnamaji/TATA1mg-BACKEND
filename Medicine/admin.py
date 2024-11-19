@@ -56,7 +56,7 @@ class HowToUseInline(admin.StackedInline):
 
 
 class HowDrugWorksInline(admin.StackedInline):
-    model = HowDrugWorks
+    model = HowDrugWork
     extra = 1
 
 
@@ -106,16 +106,22 @@ class SideEffectAdmin(admin.ModelAdmin):
     search_fields = ('title',)
 
 
-@admin.register(HowToUse)
-class HowToUseAdmin(admin.ModelAdmin):
-    list_display = ('id', 'medicine', 'description')
+# Register the HowDrugWorks model
+class HowDrugWorksAdmin(admin.ModelAdmin):
+    list_display = ('medicine', 'description')
     search_fields = ('medicine__name', 'description')
 
+admin.site.register(HowDrugWork, HowDrugWorksAdmin)
 
-@admin.register(HowDrugWorks)
-class HowDrugWorksAdmin(admin.ModelAdmin):
-    list_display = ('id', 'medicine', 'alcohol', 'pregnancy', 'breast_feeding', 'driving', 'kidney', 'liver')
-    search_fields = ('medicine__name',)
+# Register the SafetyAdvice model
+class SafetyAdviceAdmin(admin.ModelAdmin):
+    list_display = ('medicine', 'alcohol', 'pregnancy', 'breast_feeding', 'driving', 'kidney', 'liver')
+    search_fields = ('medicine__name', 'alcohol', 'pregnancy', 'breast_feeding', 'driving', 'kidney', 'liver')
+
+admin.site.register(SafetyAdvice, SafetyAdviceAdmin)
+
+# Optionally register the Medicine model if it's not already registered
+# admin.site.register(Medicine)
 
 
 @admin.register(MissedDose)
