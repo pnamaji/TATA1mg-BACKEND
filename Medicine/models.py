@@ -117,19 +117,15 @@ class PrizeAndMedicineDetail(models.Model):
     views = models.IntegerField(default=0)
 
     def __str__(self):
-        return self.discounted_price
+        return self.unit_type
     
-    def save(self, *args, **kwargs):
-        # Generate SKU if it's not already set
-        if not self.sku:
-            self.sku = self.generate_unique_sku()  # Generate SKU based on instance attributes
-        
-        if self.selling_price and self.discount_percentage:
+    def save(self, *args, **kwargs):        
+        if self.mrp and self.discount_percentage:
             # Calculate the discounted price based on percentage
-            self.discounted_price = self.selling_price - (self.selling_price * self.discount_percentage / 100)
-        elif self.selling_price and self.discounted_price:
+            self.discounted_price = self.mrp - (self.mrp * self.discount_percentage / 100)
+        elif self.mrp and self.discounted_price:
             # Calculate the discount percentage based on price
-            self.discount_percentage = ((self.selling_price - self.discounted_price) / self.selling_price) * 100
+            self.discount_percentage = ((self.mrp - self.discounted_price) / self.mrp) * 100
         super().save(*args, **kwargs)
 
     # Expected delivery data calculate Method
@@ -161,7 +157,7 @@ class Overview(models.Model):
 class UseCase(models.Model):
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='usecase')
     name = models.CharField(max_length=255)
-    description = models.TextField()
+    description = models.TextField(blank=True, null=True)
 
 class Benefit(models.Model):
     use_case = models.ForeignKey(UseCase, on_delete=models.CASCADE)

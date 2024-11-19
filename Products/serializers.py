@@ -71,7 +71,7 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'quantity', 'image',  'description', 'selling_price', 'discounted_price', 'ad', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
+        fields = ['id', 'name', 'quantity', 'image',  'description', 'selling_price', 'discounted_price', 'discount_percentage', 'prescription_required', 'stock', 'sku', 'expiry_date', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
   
 class ProductHighlightSerializer(serializers.ModelSerializer):
     class Meta:
