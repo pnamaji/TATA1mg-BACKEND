@@ -26,6 +26,7 @@ urlpatterns = [
     path('account/', include('Account.urls')),
     path('health-plans/', include('Health_Plans.urls')),
     path('products/', include('Products.urls')),
+    path('medicine/', include('Medicine.urls')),
     path('set_language/', set_language, name='set_language'),
 ]
 if settings.DEBUG:  # Serve media files during development

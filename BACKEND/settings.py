@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'Account',
     'Health_Plans',
     'Products',
+    'Medicine',
 ]
 
 MIDDLEWARE = [
