@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.urls import reverse
 import uuid
 from django.utils import timezone
@@ -107,16 +109,37 @@ class Brand(models.Model):
     
 def file_upload_to_products(instance, filename):
     ext = filename.split('.')[-1]
-    new_filename = f"{instance.product.name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+    new_filename = f"{instance.name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
     return os.path.join('product_images/', new_filename)
     
 
 # Product Model linked to Category
 class Product(models.Model):
+    UNIT_TYPES = [
+        ('jar', 'Jar'),
+        ('tube', 'Tube'),
+        ('strip', 'Strip'),
+        ('combo_pack', 'Combo Pack'),
+        ('pump_bottle', 'Pump Bottle'),
+        ('packet', 'Packet'),
+        ('sachet', 'Sachet'),
+        ('box', 'Box'),
+        ('bottle', 'Bottle'),
+    ]
+    SELL_TYPES = [
+        ('null', 'Null'),
+        ('sell', 'Sell'),
+        ('best_seller', 'Best Seller'),
+    ]
     category = models.ManyToManyField(Category, related_name="products")  # Linking to Category model
     categorytype = models.ManyToManyField(TypesOfCategory, related_name="products")
-    name = models.CharField(max_length=200)
-    quantity = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
+    is_on_sale = models.CharField(default='null', choices=SELL_TYPES)
+    sale_start_date = models.DateTimeField(null=True, blank=True)
+    sale_end_date = models.DateTimeField(null=True, blank=True)
+    unit_type = models.CharField(max_length=50, choices=UNIT_TYPES)
+    quantity = models.CharField(max_length=255)
+    stock = models.IntegerField(default=0, null=True, blank=True)
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, default=1)
     tags = models.ManyToManyField(Tag, related_name='products')
     description = models.TextField()
@@ -125,10 +148,11 @@ class Product(models.Model):
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=0, null=True, blank=True)
     discounted_price = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
     prescription_required = models.BooleanField(null=True, blank=True, default=False)
-    sku = models.CharField(max_length=100, unique=True, blank=True, editable=False)  # SKU field
+    sku = models.CharField(max_length=255, unique=True, blank=True, editable=False)  # SKU field
     expiry_date = models.DateField(blank=True, null=True)
     delivery_days = models.IntegerField(default=3)  # Admin se set hone wala field
     created_at = models.DateTimeField(auto_now_add=True)
+    views = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
@@ -183,7 +207,19 @@ class ProductHighlight(models.Model):
         return self.title
        
 class PackageSize(models.Model):
+    UNIT_TYPES = [
+        ('jar', 'Jar'),
+        ('tube', 'Tube'),
+        ('strip', 'Strip'),
+        ('combo_pack', 'Combo Pack'),
+        ('pump_bottle', 'Pump Bottle'),
+        ('packet', 'Packet'),
+        ('sachet', 'Sachet'),
+        ('box', 'Box'),
+        ('bottle', 'Bottle'),
+    ]
     product = models.ForeignKey(Product, related_name='package_size', on_delete=models.CASCADE)
+    unit_type = models.CharField(max_length=50, choices=UNIT_TYPES)
     quantity = models.CharField(max_length=100)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=0, null=True, blank=True)
@@ -202,9 +238,22 @@ class PackageSize(models.Model):
             self.discount_percentage = ((self.selling_price - self.discounted_price) / self.selling_price) * 100
         super().save(*args, **kwargs)
 
+@receiver(post_save, sender=Product)
+def create_package_size(sender, instance, created, **kwargs):
+    if created:  # Only when a new Product is created
+        PackageSize.objects.create(
+            product=instance,  # Link to the Product instance
+            quantity=instance.quantity,  # Use quantity from Product
+            unit_type=instance.unit_type,  # Use unit_type from Product
+            selling_price=instance.selling_price,
+            discount_percentage=instance.discount_percentage,
+            discounted_price=instance.discounted_price,
+            stock=instance.stock,  # Default stock value
+        )
+
 class ProductImage(models.Model):
-    package_size = models.ForeignKey(PackageSize, related_name='productImage', on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
+    package_size = models.ForeignKey(PackageSize, related_name='productImage', on_delete=models.CASCADE, blank=True, null=True)
+    product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE, blank=True, null=True)
     image = models.ImageField(upload_to=file_upload_to_products)
     
     def __str__(self):
@@ -214,6 +263,14 @@ class ProductImage(models.Model):
         if self.image:
             return format_html('<img src="{}" width="50" height="50" />', self.image.url)
         return "No Image"
+    
+@receiver(post_save, sender=Product)
+def create_product_image(sender, instance, created, **kwargs):
+    if created:  # Only when a new Product is created
+        ProductImage.objects.create(
+            product=instance,  # Link to the Product instance
+            image = instance.image, # Use image from Product
+        )
 
 class Coupon(models.Model):
     code = models.CharField(max_length=50, unique=True)

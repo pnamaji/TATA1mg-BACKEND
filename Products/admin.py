@@ -76,7 +76,7 @@ class BrandAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'get_categories', 'get_types_of_category')  # Use custom methods for ManyToMany fields
+    list_display = ('id', 'name', 'get_categories', 'get_types_of_category', 'image_preview')  # Use custom methods for ManyToMany fields
 
     def get_categories(self, obj):
         return ", ".join([category.name for category in obj.category.all()])
@@ -85,6 +85,13 @@ class ProductAdmin(admin.ModelAdmin):
     def get_types_of_category(self, obj):
         return ", ".join([type_of_category.name for type_of_category in obj.categorytype.all()])
     get_types_of_category.short_description = 'Types of Category'
+
+    def image_preview(self, obj):
+        # Check if the product has an image and return the HTML tag
+        if hasattr(obj, 'image') and obj.image:
+            return format_html('<img src="{}" style="width: 50px; height: 50px;" />', obj.image.url)
+        return "No Image"
+    image_preview.short_description = 'Image Preview'
 
 @admin.register(TypesOfCategory)
 class TypesOfCategoryAdmin(admin.ModelAdmin):
