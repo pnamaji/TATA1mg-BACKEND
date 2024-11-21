@@ -132,9 +132,21 @@ class ReviewSerializer(serializers.ModelSerializer):
 
         return ratings_percentage
     
+class MarketerSerializer(serializers.ModelSerializer):
 
+    class Meta:
+        model = Marketer
+        fields =  ['id', 'name', 'address']
+    
 class ManufacturerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Manufacturer
-        fields = '__all__'
+        fields = ['id', 'name', 'address']
+
+class ProductInformationSerializer(serializers.ModelSerializer):
+    Manufacturer = ManufacturerSerializer
+    Marketer = MarketerSerializer
+    class Meta:
+        model = ProductInformation
+        fields = ['id', 'product', 'cash_on_delivery', 'manufacturer', 'marketer', 'country_of_origin', 'expiry_date']

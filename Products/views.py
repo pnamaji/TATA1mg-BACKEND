@@ -23,6 +23,27 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 
+class ProductInformationViewSet(viewsets.ViewSet):
+    """
+    A ViewSet for retrieving images for a specific product.
+    """
+
+    @action(detail=False, methods=['get'], url_path='information(?P<product_id>[^/.]+)')
+    def list_by_product(self, request, product_id=None):
+        # Corrected the filter to use 'Product_id'
+        product_information = ProductInformation.objects.filter(Product_id=product_id)
+        
+        if not product_information.exists():
+            return Response({"error": "No highlights found for this product."}, status=404)
+
+        # Pass the request context to the serializer
+        serializer = ProductInformationSerializer(product_information, many=True, context={'request': request})
+        return Response(serializer.data, status=200)
+
+class ProductModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
 class ManufacturerModelViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Manufacturer.objects.all()
     serializer_class = ManufacturerSerializer
