@@ -71,14 +71,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
 #             })
 #         return data
 
-# class OrderItemSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = OrderItem
-#         fields = ['product', 'quantity', 'price']
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ['product', 'quantity', 'price']
 
-# class OrderSerializer(serializers.ModelSerializer):
-#     items = OrderItemSerializer(many=True, source='orderitem_set', read_only=True)
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True, source='orderitem_set', read_only=True)
 
-#     class Meta:
-#         model = Order
-#         fields = ['id', 'user', 'total_price', 'status', 'order_date', 'shipping_address', 'items']
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'total_price', 'status', 'order_date', 'shipping_address', 'items']

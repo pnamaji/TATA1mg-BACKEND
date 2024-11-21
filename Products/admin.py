@@ -49,34 +49,25 @@ class CategoryAdmin(admin.ModelAdmin):
 #     search_fields = ('name', 'category__name')
 #     list_filter = ('category',)
 
+# ==================== COUNTRY MODEL ====================
+# Customizing the admin view for the Country model
+class CountryAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')  # Display ID and name fields
+    search_fields = ('name',)  # Allow searching by country name
+    list_filter = ('name',)  # Add a filter sidebar to filter by name
+
+# Registering the model with the admin interface
+admin.site.register(Country, CountryAdmin)
+
 # ==================== BRAND MODEL ====================
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
+    list_display = ('id', 'name', 'description')
     search_fields = ('name',)
-
-# ==================== PRODUCT MODEL ====================
-# class ProductAdminForm(forms.ModelForm):
-#     class Meta:
-#         model = Product
-#         fields = '__all__'
-# 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.fields['categorytype'].queryset = TypesOfCategory.objects.none()
-
-    #     if 'category' in self.data:
-    #         try:
-    #             category_id = int(self.data.get('category'))
-    #             self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category_id=category_id)
-    #         except (ValueError, TypeError):
-    #             pass
-    #     elif self.instance.pk:
-    #         self.fields['categorytype'].queryset = TypesOfCategory.objects.filter(category=self.instance.category)
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'get_categories', 'get_types_of_category', 'image_preview')  # Use custom methods for ManyToMany fields
+    list_display = ('id', 'name', 'get_categories', 'get_types_of_category','average_rating', 'num_ratings', 'num_reviews', 'image_preview')  # Use custom methods for ManyToMany fields
 
     def get_categories(self, obj):
         return ", ".join([category.name for category in obj.category.all()])
@@ -92,6 +83,23 @@ class ProductAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" style="width: 50px; height: 50px;" />', obj.image.url)
         return "No Image"
     image_preview.short_description = 'Image Preview'
+
+# Custom Admin for ProductHighlight
+class ProductHighlightAdmin(admin.ModelAdmin):
+    list_display = ('id', 'Product', 'description', 'get_product_name')
+    search_fields = ('Product__name', 'description')  # Allows searching by product name or description
+    list_filter = ('Product',)  # Allows filtering by product
+    ordering = ('Product',)  # Default ordering by Product
+
+    def get_product_name(self, obj):
+        return obj.Product.name  # Returns the name of the product for display
+    get_product_name.short_description = 'Product Name'  # Customize the column title
+
+    def __str__(self):
+        return self.Product.name
+
+# Registering the ProductHighlight model with its custom admin
+admin.site.register(ProductHighlight, ProductHighlightAdmin)
 
 @admin.register(TypesOfCategory)
 class TypesOfCategoryAdmin(admin.ModelAdmin):
@@ -117,21 +125,6 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 admin.site.register(ProductImage, ProductImageAdmin)
 
-# ==================== ORDER MODEL ====================
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'total_price', 'status', 'order_date', 'shipping_address')
-    search_fields = ('user__username', 'status')
-    list_filter = ('status', 'order_date')
-    date_hierarchy = 'order_date'
-    readonly_fields = ('order_date',)
-
-# ==================== ORDER ITEM MODEL ====================
-@admin.register(OrderItem)
-class OrderItemAdmin(admin.ModelAdmin):
-    list_display = ('order', 'product', 'quantity', 'price')
-    search_fields = ('order__id', 'product__name')
-
 # ==================== REVIEW MODEL ====================
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
@@ -139,11 +132,26 @@ class ReviewAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'product__name')
     list_filter = ('rating', 'review_date')
 
-# ==================== PRESCRIPTION MODEL ====================
-@admin.register(Prescription)
-class PrescriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'doctor_name', 'issued_date')
-    search_fields = ('user__username', 'doctor_name')
-    list_filter = ('issued_date',)
-    date_hierarchy = 'issued_date'
-    readonly_fields = ('issued_date',)
+class ProductInformationAdmin(admin.ModelAdmin):
+    list_display = ('product', 'cash_on_delivery', 'manufacturer', 'marketer', 'country_of_origin', 'expiry_date')  # Fields to display in the list view
+    list_filter = ('cash_on_delivery', 'manufacturer', 'marketer', 'country_of_origin')  # Filters to help admin users
+    search_fields = ('product__name', 'manufacturer__name', 'marketer__name')  # Searchable fields
+    list_editable = ('cash_on_delivery',)  # Fields that can be edited directly in the list view
+    
+
+class ManufacturerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'address')  # Fields to display in the list view
+    search_fields = ('name',)  # Allow search by name
+    list_filter = ('name',)  # Filters based on the name
+    ordering = ('name',)  # Default ordering
+
+class MarketerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'address')  # Fields to display in the list view
+    search_fields = ('name',)  # Allow search by name
+    list_filter = ('name',)  # Filters based on the name
+    ordering = ('name',)  # Default ordering
+
+# Registering the models with the admin site
+admin.site.register(Manufacturer, ManufacturerAdmin)
+admin.site.register(Marketer, MarketerAdmin)
+admin.site.register(ProductInformation, ProductInformationAdmin)

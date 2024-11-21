@@ -1,21 +1,6 @@
 from rest_framework import serializers
 from .models import *
     
-class ImageProductSerializer(serializers.ModelSerializer):
-    # img_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ProductImage
-        fields = ['image']
-
-    def get_image(self, obj):
-        if obj.image:  # Ensure the image exists
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url  # Fallback if no request context
-        return None  # If no image is uploaded
-    
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
@@ -49,13 +34,19 @@ class TypeOFCategorySerializer(serializers.ModelSerializer):
         if obj.img:  # Ensure the image is associated
             return request.build_absolute_uri(obj.img.url)
         return None  # Return None if no image exists
+    
+class CountrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Country
+        fields = ['id', 'name']
 
 class BrandSerializer(serializers.ModelSerializer):
+    country_of_origin = CountrySerializer()
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
 
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'description', 'img', 'tags']
+        fields = ['id', 'name', 'address', 'description', 'img', 'tags']
 
     def get_img_url(self, obj):
         request = self.context.get('request')
@@ -71,12 +62,34 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'description', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views', 'prescription_required', 'sku', 'expiry_date', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
+        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'description', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expiry_date', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
   
 class ProductHighlightSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductHighlight
-        fields = ('title', 'description')
+        fields = ('id', 'description')
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    # image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image']
+
+    # def get_image(self, obj):
+    #     request = self.context.get('request')
+    #     if request:
+    #         return request.build_absolute_uri(obj.image.url)
+    #     return f"{settings.MEDIA_URL}{obj.image.url}"
+
+    # def get_image(self, obj):
+    #     if obj.image:  # Ensure the image exists
+    #         request = self.context.get('request')
+    #         if request:
+    #             return request.build_absolute_uri(obj.image.url)
+    #         return obj.image.url  # Fallback if no request context
+    #     return None  # If no image is uploaded
 
 class CustomerSerializer(serializers.ModelSerializer):
     # Make user a read-only field
@@ -94,14 +107,34 @@ class CustomerSerializer(serializers.ModelSerializer):
             })
         return data
 
-class OrderItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OrderItem
-        fields = ['product', 'quantity', 'price']
-
-class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, source='orderitem_set', read_only=True)
+class ReviewSerializer(serializers.ModelSerializer):
+    ratings_breakdown = serializers.SerializerMethodField()
 
     class Meta:
-        model = Order
-        fields = ['id', 'user', 'total_price', 'status', 'order_date', 'shipping_address', 'items']
+        model = Review
+        fields = ['id', 'user', 'product', 'rating', 'review_text', 'review_date', 'ratings_breakdown']
+
+    def get_ratings_breakdown(self, obj):
+        # Get all reviews for the product
+        reviews = Review.objects.filter(product=obj.product)
+
+        # Calculate total reviews
+        total_reviews = reviews.count()
+
+        # Count ratings for each star (1-5)
+        ratings_count = {star: reviews.filter(rating=star).count() for star in range(1, 6)}
+
+        # Calculate percentages
+        ratings_percentage = [
+            {"rating": star, "percentage": round((count / total_reviews) * 100, 2) if total_reviews > 0 else 0}
+            for star, count in ratings_count.items()
+        ]
+
+        return ratings_percentage
+    
+
+class ManufacturerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Manufacturer
+        fields = '__all__'

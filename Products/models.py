@@ -1,5 +1,6 @@
 from django.db import models
-from django.db.models.signals import post_save
+from django.db.models import Avg, Count
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.urls import reverse
 import uuid
@@ -97,9 +98,30 @@ class TypesOfCategory(models.Model):
     
 def file_upload_to_brand(instance, filename):
     return f'Brand/{filename}'
+
+class Country(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+    
+class Manufacturer(models.Model):
+    name = models.CharField(max_length=255)
+    address = models.TextField()
+
+    def __str__(self):
+        return self.name
+
+class Marketer(models.Model):
+    name = models.CharField(max_length=255)
+    address = models.TextField()
+
+    def __str__(self):
+        return self.name
     
 class Brand(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=255, unique=True)
+    address = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     tags = models.ManyToManyField(Tag, related_name='brands_tags')
     img = models.ImageField(upload_to=file_upload_to_brand, null=True, blank=True)
@@ -109,7 +131,8 @@ class Brand(models.Model):
     
 def file_upload_to_products(instance, filename):
     ext = filename.split('.')[-1]
-    new_filename = f"{instance.name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+    product_name = slugify(instance.product.name)  # Ensure valid file names
+    new_filename = f"{product_name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
     return os.path.join('product_images/', new_filename)
     
 
@@ -149,13 +172,25 @@ class Product(models.Model):
     discounted_price = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
     prescription_required = models.BooleanField(null=True, blank=True, default=False)
     sku = models.CharField(max_length=255, unique=True, blank=True, editable=False)  # SKU field
-    expiry_date = models.DateField(blank=True, null=True)
     delivery_days = models.IntegerField(default=3)  # Admin se set hone wala field
     created_at = models.DateTimeField(auto_now_add=True)
     views = models.IntegerField(default=0)
 
+    # Review-related fields
+    average_rating = models.DecimalField(max_digits=2, decimal_places=1, default=0)
+    num_ratings = models.IntegerField(default=0)
+    num_reviews = models.IntegerField(default=0)
+    recent_reviews = models.JSONField(default=list)
+    review_summary = models.TextField(blank=True, null=True)
+
     def __str__(self):
         return self.name
+    
+    # def average_rating(self):
+    #     reviews = self.reviews.all()
+    #     if reviews.count() > 0:
+    #         return round(sum(review.rating for review in reviews) / reviews.count(), 1)
+    #     return 0
     
     # Method to calculate discount percentage
     # def discount_percentage(self):
@@ -200,11 +235,10 @@ class Product(models.Model):
     
 class ProductHighlight(models.Model):
     Product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_highlight')
-    title = models.CharField(max_length=255)
     description = models.TextField()
 
     def __str__(self):
-        return self.title
+        return self.description
        
 class PackageSize(models.Model):
     UNIT_TYPES = [
@@ -257,7 +291,7 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to=file_upload_to_products)
     
     def __str__(self):
-        return f"Image for {self.package_size.name}"
+        return f"{self.product.name} Image"
     
     def image_preview(self):
         if self.image:
@@ -271,6 +305,17 @@ def create_product_image(sender, instance, created, **kwargs):
             product=instance,  # Link to the Product instance
             image = instance.image, # Use image from Product
         )
+
+class ProductInformation(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Add reference to Product
+    cash_on_delivery = models.BooleanField(default=False)
+    manufacturer = models.ForeignKey(Manufacturer, on_delete=models.CASCADE, null=True, blank=True)  # Manufacturer is optional
+    marketer = models.ForeignKey(Marketer, on_delete=models.CASCADE)
+    country_of_origin = models.ForeignKey(Country, on_delete=models.CASCADE)  # Will be populated from Brand
+    expiry_date = models.DateField()  # Will be populated from Brand
+
+    def __str__(self):
+        return self.cash_on_delivery
 
 class Coupon(models.Model):
     code = models.CharField(max_length=50, unique=True)
@@ -289,55 +334,49 @@ class Coupon(models.Model):
             return total_price * (self.discount / 100)
         return self.discount
 
-# Order Model
-class Order(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
-        ('shipped', 'Shipped'),
-        ('delivered', 'Delivered'),
-        ('canceled', 'Canceled'),
-    ]
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    products = models.ManyToManyField(Product, through='OrderItem')
-    total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    order_date = models.DateTimeField(default=timezone.now)
-    shipping_address = models.TextField()
-    tracking_number = models.CharField(max_length=100, blank=True, null=True)
-
-    def __str__(self):
-        return f'Order {self.id} by {self.user.username}'
-
-# Order Item Model (for many-to-many relationship between Order and Product)
-class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-
-    def __str__(self):
-        return f'{self.product.name} in order {self.order.id}'
-    
 # Review Model
 class Review(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     rating = models.PositiveSmallIntegerField()
-    review_text = models.TextField()
+    review_text = models.TextField(blank=True, null=True)
     review_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f'Review by {self.user.username} for {self.product.name}'
     
-# Prescription Model
-class Prescription(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    doctor_name = models.CharField(max_length=200)
-    prescription_file = models.FileField(upload_to='prescriptions/')
-    issued_date = models.DateField()
-    medicines = models.ManyToManyField(Product)
 
-    def __str__(self):
-        return f'Prescription for {self.user.username}'
+# ============================================Review update in product==============================================   
+@receiver([post_save, post_delete], sender=Review)
+def update_product_reviews(sender, instance, **kwargs):
+    product = instance.product
+
+    # Filter reviews with valid review text
+    reviews_with_text = Review.objects.filter(product=product).exclude(review_text__isnull=True).exclude(review_text__exact='')
+    all_reviews = Review.objects.filter(product=product)
+
+    # Calculate average rating
+    product.average_rating = round(all_reviews.aggregate(Avg('rating'))['rating__avg'] or 0, 1)
+
+    # Update number of reviews (only counting those with review_text)
+    product.num_reviews = reviews_with_text.count()
+
+    # Update number of ratings (all reviews with a rating > 0)
+    product.num_ratings = all_reviews.exclude(rating=0).count()
+
+    # Get recent reviews (only those with review_text)
+    recent_reviews_queryset = reviews_with_text.order_by('-review_date')[:5]
+    product.recent_reviews = [
+        {
+            "user": review.user.username if review.user else "Anonymous",
+            "rating": review.rating,
+            "review_text": review.review_text,
+        }
+        for review in recent_reviews_queryset
+    ]
+
+    # Review summary
+    product.review_summary = f"{product.num_reviews} reviews with an average rating of {product.average_rating}"
+
+    # Save product updates
+    product.save()

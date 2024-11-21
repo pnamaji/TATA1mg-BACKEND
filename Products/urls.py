@@ -28,12 +28,23 @@ router.register(r'api/zandu-top-seller-products', ZanduTopSellersProducts, basen
 router.register(r'api/healthcare-devices-top-brands', HealthCareDevicesTopBrandsList, basename="Healthcare Devices top Brands")
 router.register(r'api/homeopathy-womens-health', HomeopathyWomensHealthProductsList, basename="Homeopathy Women's health Products")
 router.register(r'api/minimum-33-off-products', Minimum33PercentOffProductsList, basename="Minimum 33 or more percent off Products")
-router.register(r'api/product-highlights', ProductHighlightViewSet, basename="Product Highlights")
-router.register(r'brands', BrandViewSet)
+
+# Specific products API's
+router.register(r'api/product-images', ProductImageViewSet, basename='product-image')
+router.register(r'api/product-highlights', ProductHighlightViewSet, basename='product-Highlights')
+router.register(r'api/product-rating', ReviewViewSet, basename='product Rating')    # this is url /products/api/product-rating/product/<int:product_id>/
+
+router.register(r'api/manufacturer', ManufacturerModelViewSet)
+router.register(r'api/brands', BrandViewSet)
+router.register(r'api/country', CountryViewSet)
 router.register(r'address', CustomerViewSet)
 
+from . import views
+
 urlpatterns = [
+
     path('', include(router.urls)),
+    path('messages/', views.make_messages, name='make_messages'),
 
     # view Type-of-Category
     path('category/<int:category_id>/types/', TypeOfCategoryAPIView.as_view(), name='types_of_category'),

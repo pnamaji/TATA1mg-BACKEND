@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.core.cache import cache
+from django.http import HttpResponse
 from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -14,16 +15,66 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import generics, permissions
 from .models import *
+from Account.models import Order, OrderItem
+from Account.serializers import OrderItemSerializer, OrderSerializer
 from .serializers import *
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 import random
 
-class ProductHighlightViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = ProductHighlight.objects.all()
-    serializer_class = ProductHighlightSerializer
+class ManufacturerModelViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Manufacturer.objects.all()
+    serializer_class = ManufacturerSerializer
+
+def make_messages(request):
+    return HttpResponse("This is the messages page.")
+
+class ReviewViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+
+    @action(detail=False, methods=['get'], url_path='product/(?P<product_id>[^/.]+)')
+    def list_by_product(self, request, product_id=None):
+        # Filter reviews by product ID
+        reviews = Review.objects.filter(product_id=product_id)
+        if not reviews.exists():
+            return Response({"error": "No reviews found for this product."}, status=404)
+
+        serializer = self.get_serializer(reviews.first())  # Pass the first review for ratings breakdown
+        return Response(serializer.data)
+
+class ProductHighlightViewSet(viewsets.ViewSet):
+    """
+    A ViewSet for retrieving images for a specific product.
+    """
+
+    @action(detail=False, methods=['get'], url_path='(?P<product_id>[^/.]+)')
+    def list_by_product(self, request, product_id=None):
+        # Corrected the filter to use 'Product_id'
+        product_highlight = ProductHighlight.objects.filter(Product_id=product_id)
+        
+        if not product_highlight.exists():
+            return Response({"error": "No highlights found for this product."}, status=404)
+
+        # Pass the request context to the serializer
+        serializer = ProductHighlightSerializer(product_highlight, many=True, context={'request': request})
+        return Response(serializer.data, status=200)
+
+class ProductImageViewSet(viewsets.ViewSet):
+    """
+    A ViewSet for retrieving images for a specific product.
+    """
+
+    @action(detail=False, methods=['get'], url_path='(?P<product_id>[^/.]+)')
+    def list_by_product(self, request, product_id=None):
+        product_images = ProductImage.objects.filter(product_id=product_id)
+        if not product_images.exists():
+            return Response({"error": "No images found for this product."}, status=404)
+
+        # Pass the request context to the serializer
+        serializer = ProductImageSerializer(product_images, many=True, context={'request': request})
+        return Response(serializer.data, status=200)
 
 class Minimum33PercentOffProductsList(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
@@ -181,7 +232,7 @@ class ProductImageUploadView(APIView):
         except Product.DoesNotExist:
             return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = ImageProductSerializer(data=request.data)
+        serializer = ProductImageSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(product=product)  # Associate the image with the specified product
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -277,15 +328,6 @@ class PopularCategoriesModelViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return Category.objects.filter(tags__name="popular catagories").distinct()
-
-# class PersonalCareAPIView(APIView):
-#     def get(self, request, *args, **kwargs):
-#         # Filter products with the "Health Concerns" tag
-#         personal_category = Category.objects.filter(tags__name="personal care").distinct()
-
-#         # Serializer the filtered category
-#         serializer = CategorySerializer(personal_category, many=True)
-#         return Response(serializer.data)
     
 class PersonalCareModelViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
@@ -293,15 +335,6 @@ class PersonalCareModelViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return Category.objects.filter(tags__name="personal care").distinct()
-
-# class CollagenAPIView(APIView):
-#     def get(self, request, *args, **kwargs):
-#         # Filter products with the "Health Concerns" tag
-#         collagen_category = Product.objects.filter(tags__name="collagen").distinct()
-
-#         # Serializer the filtered category
-#         serializer = ProductSerializer(collagen_category, many=True)
-#         return Response(serializer.data)
     
 class CollagenAPIView(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
@@ -310,15 +343,6 @@ class CollagenAPIView(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return Product.objects.filter(tags__name="collagen").distinct()
 
-# class HealthConcernAPIView(APIView):
-#     def get(self, request, *args, **kwargs):
-#         # Filter products with the "Health Concerns" tag
-#         healthconcerns_category = Category.objects.filter(tags__name="Health Concerns").distinct()
-
-#         # Serializer the filtered category
-#         serializer = CategorySerializer(healthconcerns_category, many=True)
-#         return Response(serializer.data)
-    
 class HealthConcernAPIView(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -338,15 +362,6 @@ class SpotlightProductViewSet(viewsets.ReadOnlyModelViewSet):
         Override the get_queryset method to filter products by the 'Spotlite' tag.
         """
         return Product.objects.filter(tags__name="spotlight").distinct()
-
-# class SpotlightProductListAPIView(APIView):
-#     def get(self, request, *args, **kwargs):
-#         # Filter products with the "Spotlite" tag
-#         spotlite_products = Product.objects.filter(tags__name="spotlight").distinct()
-        
-#         # Serialize the filtered products
-#         serializer = ProductSerializer(spotlite_products, many=True)
-#         return Response(serializer.data)
     
 class CategoryProductView(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
@@ -648,6 +663,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         type_of_category_id = self.kwargs.get('category_id')
         return Product.objects.filter(category_id=type_of_category_id)
 
+class CountryViewSet(viewsets.ModelViewSet):
+    queryset = Country.objects.all()  # Correct: This is a queryset, which is iterable
+    serializer_class = CountrySerializer
+
 class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Brand.objects.all()
     serializer_class = BrandSerializer
@@ -666,18 +685,27 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]
 
-    @action(detail=True, methods=['get'])
-    def types(self, request, pk=None):
-        category = self.get_object()
-        types_of_category = TypesOfCategory.objects.filter(category=category)
-        serializer = TypeOFCategorySerializer(types_of_category, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        # Apply distinct first, then limit the result in memory
+        categories = (
+            Category.objects.filter(tags__name="mobile application popular categories")
+            .order_by('id')  # Ensures consistent ordering
+            .distinct()
+        )
+        return categories[:16]  # Limit the queryset to the first 16 results
 
-    @action(detail=True, methods=['get'], url_path='types/(?P<type_id>[^/.]+)/products')
-    def products(self, request, pk=None, type_id=None):
-        products = Product.objects.filter(type_of_category_id=type_id)
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+    # @action(detail=True, methods=['get'])
+    # def types(self, request, pk=None):
+    #     category = self.get_object()
+    #     types_of_category = TypesOfCategory.objects.filter(category=category)
+    #     serializer = TypeOFCategorySerializer(types_of_category, many=True)
+    #     return Response(serializer.data)
+
+    # @action(detail=True, methods=['get'], url_path='types/(?P<type_id>[^/.]+)/products')
+    # def products(self, request, pk=None, type_id=None):
+    #     products = Product.objects.filter(type_of_category_id=type_id)
+    #     serializer = ProductSerializer(products, many=True)
+    #     return Response(serializer.data)
 
 
 # API View to get types of category based on category
