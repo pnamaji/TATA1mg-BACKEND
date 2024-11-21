@@ -315,7 +315,7 @@ class ProductInformation(models.Model):
     expiry_date = models.DateField()  # Will be populated from Brand
 
     def __str__(self):
-        return self.cash_on_delivery
+        return f"ProductInformation for {self.product.name if self.product else 'Unknown Product'}"
 
 class Coupon(models.Model):
     code = models.CharField(max_length=50, unique=True)
