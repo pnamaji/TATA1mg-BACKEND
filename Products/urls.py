@@ -34,6 +34,7 @@ router.register(r'api/products', ProductModelViewSet)
 router.register(r'api/product-images', ProductImageViewSet, basename='product-image')
 router.register(r'api/product-highlights', ProductHighlightViewSet, basename='product-Highlights')
 router.register(r'api/product-rating', ReviewViewSet, basename='product Rating')    # this is url /products/api/product-rating/product/<int:product_id>/
+router.register(r'api/product-information', ProductInformationViewSet, basename='product Information')    # this is url /products/api/product-rating/product/<int:product_id>/
 
 router.register(r'api/manufacturer', ManufacturerModelViewSet)
 router.register(r'api/brands', BrandViewSet)

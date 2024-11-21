@@ -28,7 +28,7 @@ class ProductInformationViewSet(viewsets.ViewSet):
     A ViewSet for retrieving images for a specific product.
     """
 
-    @action(detail=False, methods=['get'], url_path='information(?P<product_id>[^/.]+)')
+    @action(detail=False, methods=['get'], url_path='(?P<product_id>[^/.]+)')
     def list_by_product(self, request, product_id=None):
         # Corrected the filter to use 'Product_id'
         product_information = ProductInformation.objects.filter(Product_id=product_id)
