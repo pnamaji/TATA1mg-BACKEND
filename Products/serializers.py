@@ -62,7 +62,7 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'description', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expiry_date', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
+        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'description', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
   
 class ProductHighlightSerializer(serializers.ModelSerializer):
     class Meta:
@@ -145,8 +145,8 @@ class ManufacturerSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'address']
 
 class ProductInformationSerializer(serializers.ModelSerializer):
-    Manufacturer = ManufacturerSerializer
-    Marketer = MarketerSerializer
+    Manufacturer = ManufacturerSerializer()
+    Marketer = MarketerSerializer()
     class Meta:
         model = ProductInformation
         fields = ['id', 'product', 'cash_on_delivery', 'manufacturer', 'marketer', 'country_of_origin', 'expiry_date']
