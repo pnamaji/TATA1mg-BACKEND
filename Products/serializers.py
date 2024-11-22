@@ -107,46 +107,58 @@ class CustomerSerializer(serializers.ModelSerializer):
             })
         return data
 
-class ReviewSerializer(serializers.ModelSerializer):
-    ratings_breakdown = serializers.SerializerMethodField()
+# class ReviewSerializer(serializers.ModelSerializer):
+#     ratings_breakdown = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Review
-        fields = ['id', 'user', 'product', 'rating', 'review_text', 'review_date', 'ratings_breakdown']
+#     class Meta:
+#         model = Review
+#         fields = ['id', 'user', 'product', 'rating', 'review_text', 'review_date', 'ratings_breakdown']
 
-    def get_ratings_breakdown(self, obj):
-        # Get all reviews for the product
-        reviews = Review.objects.filter(product=obj.product)
+#     def get_ratings_breakdown(self, obj):
+#         # Get all reviews for the product
+#         reviews = Review.objects.filter(product=obj.product)
 
-        # Calculate total reviews
-        total_reviews = reviews.count()
+#         # Calculate total reviews
+#         total_reviews = reviews.count()
 
-        # Count ratings for each star (1-5)
-        ratings_count = {star: reviews.filter(rating=star).count() for star in range(1, 6)}
+#         # Count ratings for each star (1-5)
+#         ratings_count = {star: reviews.filter(rating=star).count() for star in range(1, 6)}
 
-        # Calculate percentages
-        ratings_percentage = [
-            {"rating": star, "percentage": round((count / total_reviews) * 100, 2) if total_reviews > 0 else 0}
-            for star, count in ratings_count.items()
-        ]
+#         # Calculate percentages
+#         ratings_percentage = [
+#             {"rating": star, "percentage": round((count / total_reviews) * 100, 2) if total_reviews > 0 else 0}
+#             for star, count in ratings_count.items()
+#         ]
 
-        return ratings_percentage
+#         return ratings_percentage
     
 class MarketerSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Marketer
-        fields =  ['id', 'name', 'address']
-    
-class ManufacturerSerializer(serializers.ModelSerializer):
+        fields = ['id', 'name', 'address']
 
+class ManufacturerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Manufacturer
         fields = ['id', 'name', 'address']
 
 class ProductInformationSerializer(serializers.ModelSerializer):
-    Manufacturer = ManufacturerSerializer()
-    Marketer = MarketerSerializer()
+    manufacturer = ManufacturerSerializer()  # Updated field name
+    marketer = MarketerSerializer()
+
     class Meta:
         model = ProductInformation
         fields = ['id', 'product', 'cash_on_delivery', 'manufacturer', 'marketer', 'country_of_origin', 'expiry_date']
+
+class ReviewSerializer(serializers.ModelSerializer):
+    user = serializers.CharField(source='user.username', read_only=True)
+    class Meta:
+        model = Review
+        fields = ['id', 'user', 'product', 'rating', 'review_text', 'review_date']
+
+class ProductReviewSummarySerializer(serializers.Serializer):
+    total_reviews_count = serializers.IntegerField()
+    total_rating_count = serializers.IntegerField()
+    average_rating = serializers.FloatField()  # Add the average rating field
+    ratings_breakdown = serializers.ListField(child=serializers.DictField())
+    reviews = ReviewSerializer(many=True)  # Include all reviews

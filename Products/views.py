@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.db.models import Count, Sum
 from datetime import timedelta
 from rest_framework import status
 from rest_framework import viewsets
@@ -25,18 +26,16 @@ import random
 
 class ProductInformationViewSet(viewsets.ViewSet):
     """
-    A ViewSet for retrieving images for a specific product.
+    A ViewSet for retrieving product information for a specific product.
     """
 
     @action(detail=False, methods=['get'], url_path='(?P<product_id>[^/.]+)')
     def list_by_product(self, request, product_id=None):
-        # Corrected the filter to use 'Product_id'
-        product_information = ProductInformation.objects.filter(Product_id=product_id)
+        product_information = ProductInformation.objects.filter(product_id=product_id)
         
         if not product_information.exists():
-            return Response({"error": "No highlights found for this product."}, status=404)
+            return Response({"error": "No product information found for this product."}, status=404)
 
-        # Pass the request context to the serializer
         serializer = ProductInformationSerializer(product_information, many=True, context={'request': request})
         return Response(serializer.data, status=200)
 
@@ -59,11 +58,54 @@ class ReviewViewSet(viewsets.ReadOnlyModelViewSet):
     def list_by_product(self, request, product_id=None):
         # Filter reviews by product ID
         reviews = Review.objects.filter(product_id=product_id)
+        
         if not reviews.exists():
             return Response({"error": "No reviews found for this product."}, status=404)
 
-        serializer = self.get_serializer(reviews.first())  # Pass the first review for ratings breakdown
-        return Response(serializer.data)
+        # Calculate total review count and total rating count
+        total_reviews_count = reviews.count()
+        total_rating_count = reviews.aggregate(Sum('rating'))['rating__sum'] or 0
+
+        # Calculate the average rating
+        average_rating = total_rating_count / total_reviews_count if total_reviews_count > 0 else 0
+
+        # Count ratings for each star (1-5)
+        rating_count = reviews.values('rating').annotate(count=Count('rating')).order_by('rating')
+
+        # Calculate percentages for each rating
+        ratings_percentage = []
+        for rating in range(1, 6):
+            count = next((item['count'] for item in rating_count if item['rating'] == rating), 0)
+            percentage = (count / total_reviews_count) * 100 if total_reviews_count > 0 else 0
+            ratings_percentage.append({
+                "rating": rating,
+                "percentage": round(percentage, 2)
+            })
+
+        # Prepare the response data
+        review_summary = ProductReviewSummarySerializer({
+            'total_reviews_count': total_reviews_count,
+            'total_rating_count': total_rating_count,
+            'average_rating': round(average_rating, 2),  # Add average rating
+            'ratings_breakdown': ratings_percentage,
+            'reviews': reviews
+        })
+
+        return Response(review_summary.data)
+
+# class ReviewViewSet(viewsets.ReadOnlyModelViewSet):
+#     queryset = Review.objects.all()
+#     serializer_class = ReviewSerializer
+
+#     @action(detail=False, methods=['get'], url_path='product/(?P<product_id>[^/.]+)')
+#     def list_by_product(self, request, product_id=None):
+#         # Filter reviews by product ID
+#         reviews = Review.objects.filter(product_id=product_id)
+#         if not reviews.exists():
+#             return Response({"error": "No reviews found for this product."}, status=404)
+
+#         serializer = self.get_serializer(reviews.first())  # Pass the first review for ratings breakdown
+#         return Response(serializer.data)
 
 class ProductHighlightViewSet(viewsets.ViewSet):
     """
