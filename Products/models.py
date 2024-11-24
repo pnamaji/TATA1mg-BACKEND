@@ -165,7 +165,7 @@ class Product(models.Model):
     stock = models.IntegerField(default=0, null=True, blank=True)
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, default=1)
     tags = models.ManyToManyField(Tag, related_name='products')
-    description = models.TextField()
+    marketer = models.ForeignKey(Marketer, on_delete=models.CASCADE, related_name='products', blank=True, null=True)
     image = models.ImageField(upload_to=file_upload_to_products, blank=True, null=True)
     selling_price = models.DecimalField(max_digits=10, decimal_places=0)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=0, null=True, blank=True)
@@ -305,6 +305,23 @@ def create_product_image(sender, instance, created, **kwargs):
             product=instance,  # Link to the Product instance
             image = instance.image, # Use image from Product
         )
+
+class ProductDetails(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_details')
+    description = models.TextField()
+    key_ingredients = models.TextField()
+    key_benefits = models.TextField()
+    good_to_know = models.TextField(blank=True, null=True)
+    diet_type = models.TextField(blank=True, null=True)
+    help_with = models.CharField(max_length=255, blank=True, null=True)
+    allergen_information = models.TextField(blank=True, null=True)
+    product_form = models.CharField(max_length=100, blank=True, null=True)
+    net_quantity = models.CharField(max_length=100, blank=True, null=True)
+    direction_for_use = models.TextField()
+    safety_information = models.TextField()
+
+    def __str__(self):
+        return self.description
 
 class ProductInformation(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Add reference to Product

@@ -155,3 +155,46 @@ class MarketerAdmin(admin.ModelAdmin):
 admin.site.register(Manufacturer, ManufacturerAdmin)
 admin.site.register(Marketer, MarketerAdmin)
 admin.site.register(ProductInformation, ProductInformationAdmin)
+
+@admin.register(ProductDetails)
+class ProductDetailsAdmin(admin.ModelAdmin):
+    # Fields to display in the admin list view
+    list_display = ('product', 'description', 'product_form', 'net_quantity')
+    
+    # Fields to search in the admin
+    search_fields = ('product__name',  # Assuming `Product` has a `name` field 
+                     'description','key_ingredients','key_benefits',
+                     )
+    
+    # Fields to filter in the admin list view
+    list_filter = ('product_form', 'diet_type')
+    
+    # Group fields in the detail view
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('product', 'description'),
+        }),
+        ('Ingredients and Benefits', {
+            'fields': ('key_ingredients', 'key_benefits'),
+        }),
+        ('Additional Information', {
+            'fields': ('good_to_know', 'diet_type', 'help_with', 'allergen_information', 'product_form', 'net_quantity'),
+        }),
+        ('Usage and Safety', {
+            'fields': ('direction_for_use', 'safety_information'),
+        }),
+    )
+    
+    # Automatically populate some fields or clean them
+    prepopulated_fields = {}  # If you want to auto-fill fields like `description`
+
+    # Enable in-line editing for related models if needed
+    # inlines = []  # Add related inlines if any
+
+    # Add actions
+    actions = ['mark_as_safe']
+
+    def mark_as_safe(self, request, queryset):
+        queryset.update(safety_information="Safe for use")
+        self.message_user(request, "Selected products marked as safe.")
+    mark_as_safe.short_description = "Mark selected products as safe"

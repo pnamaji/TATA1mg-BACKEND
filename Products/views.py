@@ -4,7 +4,8 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Sum
+from django.db import DatabaseError
+from django.db.models import Count, Sum, Q
 from datetime import timedelta
 from rest_framework import status
 from rest_framework import viewsets
@@ -23,6 +24,64 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 import random
+
+class ProductSearchViewSet(viewsets.ViewSet):
+    """
+    A ViewSet for searching products and their details.
+    """
+
+    @action(detail=False, methods=['get'], url_path='search')
+    def search(self, request):
+        query = request.query_params.get('q', '')  # Search query
+
+        # Validate the query parameter
+        if not query:
+            return Response(
+                {"detail": "Query parameter 'q' is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Search in Product name and related ProductDetails fields
+            products = Product.objects.filter(
+                Q(name__icontains=query) |
+                Q(product_details__description__icontains=query) |
+                Q(product_details__key_ingredients__icontains=query) |
+                Q(product_details__key_benefits__icontains=query)
+            ).distinct()
+
+            # Serialize Product without including ProductDetails
+            result = ProductSerializer(products, many=True).data
+
+            return Response(result)
+
+        except DatabaseError as db_error:
+            # Handle database errors
+            return Response(
+                {"detail": "A database error occurred. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            # Handle other unexpected errors
+            return Response(
+                {"detail": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class ProductDetailsViewSet(viewsets.ViewSet):
+    """
+    A ViewSet for retrieving product information for a specific product.
+    """
+
+    @action(detail=False, methods=['get'], url_path='(?P<product_id>[^/.]+)')
+    def list_by_product(self, request, product_id=None):
+        product_details = ProductDetails.objects.filter(product_id=product_id)
+        
+        if not product_details.exists():
+            return Response({"error": "No product information found for this product."}, status=404)
+
+        serializer = ProductDetailsSerializer(product_details, many=True, context={'request': request})
+        return Response(serializer.data, status=200)
 
 class ProductInformationViewSet(viewsets.ViewSet):
     """

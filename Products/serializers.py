@@ -62,8 +62,13 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'description', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
-  
+        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'marketer', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
+
+class ProductDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductDetails
+        fields = ['id', 'description', 'key_ingredients', 'key_benefits', 'good_to_know', 'diet_type', 'help_with', 'allergen_information', 'product_form', 'net_quantity', 'direction_for_use', 'safety_information']
+
 class ProductHighlightSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductHighlight

@@ -28,13 +28,15 @@ router.register(r'api/zandu-top-seller-products', ZanduTopSellersProducts, basen
 router.register(r'api/healthcare-devices-top-brands', HealthCareDevicesTopBrandsList, basename="Healthcare Devices top Brands")
 router.register(r'api/homeopathy-womens-health', HomeopathyWomensHealthProductsList, basename="Homeopathy Women's health Products")
 router.register(r'api/minimum-33-off-products', Minimum33PercentOffProductsList, basename="Minimum 33 or more percent off Products")
+router.register(r'api', ProductSearchViewSet, basename='product-search')            # URL IS products/api/search/?q=<input>
 
 # Specific products API's
 router.register(r'api/products', ProductModelViewSet)
 router.register(r'api/product-images', ProductImageViewSet, basename='product-image')
 router.register(r'api/product-highlights', ProductHighlightViewSet, basename='product-Highlights')
 router.register(r'api/product-rating', ReviewViewSet, basename='product Rating')    # this is url /products/api/product-rating/product/<int:product_id>/
-router.register(r'api/product-information', ProductInformationViewSet, basename='product Information')    # this is url /products/api/product-rating/product/<int:product_id>/
+router.register(r'api/product-details', ProductDetailsViewSet, basename='product details')    # this is url /products/api/product-details/<int:product_id>/
+router.register(r'api/product-information', ProductInformationViewSet, basename='other Information')    # this is url /products/api/other-rating/<int:product_id>/
 
 router.register(r'api/manufacturer', ManufacturerModelViewSet)
 router.register(r'api/brands', BrandViewSet)

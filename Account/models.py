@@ -6,6 +6,7 @@ import random
 import os
 from django.utils.html import format_html
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError
 import string
 from django.contrib.auth import get_user_model
 import uuid
@@ -158,6 +159,33 @@ class Order(models.Model):
 
     def __str__(self):
         return f'Order {self.id} by {self.user.username}'
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['status']),
+            models.Index(fields=['order_date']),
+        ]
+
+    def __str__(self):
+        return f'Order {self.id} by {self.user.username}'
+
+    def clean(self):
+        """
+        Ensure the total_price matches the sum of all OrderItems.
+        """
+        calculated_price = sum(
+            item.total_price for item in self.items.all()  # Use related_name='items' in OrderItem
+        )
+        if self.total_price != calculated_price:
+            raise ValidationError("Total price does not match the sum of OrderItem prices.")
+
+    def save(self, *args, **kwargs):
+        """
+        Automatically clean the model before saving.
+        """
+        self.clean()
+        super().save(*args, **kwargs)
 
 # Order Item Model (for many-to-many relationship between Order and Product)
 class OrderItem(models.Model):

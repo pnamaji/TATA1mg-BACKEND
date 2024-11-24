@@ -44,6 +44,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 print(ALLOWED_HOSTS)
 
 INSTALLED_APPS = [
+    'django_extensions',
     'channels',
     'jazzmin',
     'corsheaders',
