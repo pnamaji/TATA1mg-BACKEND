@@ -25,6 +25,109 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 
+# Views Implementing handle
+
+class TagsViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+
+    @action(detail=True, methods=['post'], url_path='add-view')
+    def add_view(self, request, pk=None):
+        try:
+            # Fetch the TypesOfCategory object
+            tag = self.get_object()
+            # Increment the views
+            tag.views += 1
+            tag.save()
+            # Return success response
+            return Response({"message": "View added successfully", "views": tag.views}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class ProductsViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    @action(detail=True, methods=['post'], url_path='add-view')
+    def add_view(self, request, pk=None):
+        try:
+            # Fetch the TypesOfCategory object
+            product = self.get_object()
+            # Increment the views
+            product.views += 1
+            product.save()
+            # Return success response
+            return Response({"message": "View added successfully", "views": product.views}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class CategoryViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    @action(detail=True, methods=['post'], url_path='add-view')
+    def add_view(self, request, pk=None):
+        try:
+            # Fetch the TypesOfCategory object
+            category = self.get_object()
+            # Increment the views
+            category.views += 1
+            category.save()
+            # Return success response
+            return Response({"message": "View added successfully", "views": category.views}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class TypesOfCategoryViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TypesOfCategory.objects.all()
+    serializer_class = TypeOFCategorySerializer
+
+    @action(detail=True, methods=['post'], url_path='add-view')
+    def add_view(self, request, pk=None):
+        try:
+            # Fetch the TypesOfCategory object
+            types_of_category = self.get_object()
+            # Increment the views
+            types_of_category.views += 1
+            types_of_category.save()
+            # Return success response
+            return Response({"message": "View added successfully", "views": types_of_category.views}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class CategoryWiseAllProductsViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+
+    @action(detail=False, methods=['get'], url_path='by-category/(?P<category_id>[^/.]+)')
+    def by_category(self, request, category_id=None):
+        products = Product.objects.filter(category__id=category_id).distinct()
+        if not products.exists():
+            return Response({"error": "No products for this category."}, status=404)
+        serializer = ProductSerializer(products, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class CategoryWiseBrandsViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Brand.objects.all()
+
+    @action(detail=False, methods=['get'], url_path='by-category/(?P<category_id>[^/.]+)')
+    def by_category(self, request, category_id=None):
+        brands = Brand.objects.filter(category__id=category_id).distinct()
+        if not brands.exists():
+            return Response({"error": "No brands for this category."}, status=404)
+        serializer = BrandSerializer(brands, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class TypesOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TypesOfCategory.objects.all()
+
+    @action(detail=False, methods=['get'], url_path='by-category/(?P<category_id>[^/.]+)')
+    def by_category(self, request, category_id=None):
+        types_of_category = TypesOfCategory.objects.filter(category__id=category_id).distinct()
+        if not types_of_category.exists():
+            return Response({"error": "No types found for this category."}, status=404)
+        serializer = TypeOFCategorySerializer(types_of_category, many=True, context={'request': request})
+        return Response(serializer.data)
+
 class ProductSearchViewSet(viewsets.ViewSet):
     """
     A ViewSet for searching products and their details.

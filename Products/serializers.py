@@ -4,7 +4,7 @@ from .models import *
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'views']
       
 class CategorySerializer(serializers.ModelSerializer):
     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
@@ -13,7 +13,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'tags', 'description', 'img']
+        fields = ['id', 'name', 'tags', 'description', 'img', 'views']
 
     def get_img_url(self, obj):
         request = self.context.get('request')
@@ -27,7 +27,7 @@ class TypeOFCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TypesOfCategory
-        fields = ['id', 'name', 'tags', 'category', 'description', 'img']
+        fields = ['id', 'name', 'tags', 'category', 'description', 'img', 'views']
 
     def get_img_url(self, obj):
         request = self.context.get('request')
@@ -41,12 +41,13 @@ class CountrySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class BrandSerializer(serializers.ModelSerializer):
-    country_of_origin = CountrySerializer()
+    # country_of_origin = CountrySerializer()
+    # img = serializers.ImageField(use_url=True)
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
 
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'address', 'description', 'img', 'tags']
+        fields = ['id', 'name', 'category', 'address', 'description', 'img', 'tags']
 
     def get_img_url(self, obj):
         request = self.context.get('request')
@@ -62,7 +63,7 @@ class ProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'marketer', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expected_delivery_date','brand', 'tags', 'category', 'categorytype']
+        fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'marketer', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expected_delivery_date', 'views','brand', 'tags', 'category', 'categorytype']
 
 class ProductDetailsSerializer(serializers.ModelSerializer):
     class Meta:

@@ -31,6 +31,248 @@ client = Client(account_sid, auth_token)
 
 # Create your views here.
 
+class UpdateMobileNumberSendOTP(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        user = request.user
+        try:
+
+            user_data = UserData.objects.get(user=request.user)
+            mobile_number = user_data.mobile_number
+            
+
+
+            # data = json.loads(request.body)
+            
+            # mobile_number = data.get('mobile_number')
+
+            
+            # Generate OTP for SMS
+            otp_sms = ''.join(random.choices(string.digits, k=5))
+            
+            print(otp_sms)
+        
+            # Set OTP expiration time (5 minutes from now)
+            otp_expiry_time = timezone.now() + timedelta(minutes=5)
+            # otp_expiry_time = timezone.make_aware(otp_expiry_time)  # Ensure it's timezone-aware
+
+            # Token expiration set to 1 hour
+            token_expiry_time = timezone.now() + timedelta(hours=5)
+            
+            # request.session['otp_sms'] = otp_sms
+            # request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+            # request.session['mobile_number'] = mobile_number
+            
+            # If the mobile number doesn't start with +91, add it
+
+            # Create a temporary token containing the mobile number and OTP
+            temp_token = jwt.encode(
+                {
+                    'mobile_number': mobile_number,
+                    'otp': otp_sms,
+                    'exp': token_expiry_time.timestamp(),
+                    'expotp': otp_expiry_time.timestamp()
+                    
+                },
+                settings.SECRET_KEY,
+                algorithm='HS256'
+            )
+            
+            if not mobile_number.startswith('+91'):
+                mobile_numbers = '+91' + mobile_number
+
+            try:
+                message = client.messages.create(
+                    body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
+                    from_=twilio_phone_number,
+                    to=mobile_numbers
+                )
+                print("Successfully")
+            except Exception as e:
+                return Response({'error': str(e)}, status=500)
+            
+            return Response({'message': 'OTP sent. Please Enter OTP to verify your account',
+                             'temp_token': temp_token  # Return temp token with OTP details
+                             }, status=200)
+                
+                
+        except json.JSONDecodeError:
+            return Response({'error': 'Invalid Json format'}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        
+# Verify OTP for update Old Mobile Number 
+class VerifyOTPForUpdateMobileNumber(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            
+            # Extract OTP and other session data
+            otp = data.get('otp')
+            temp_token = data.get('temp_token')
+
+            # Decode the temporary token
+            try:
+                payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
+                mobile_number = payload['mobile_number']
+                session_otp = payload['otp']
+                session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
+                # session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
+
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({'error': 'Temporary token expired'}, status=400)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=400)
+            
+            # Verify the OTP
+            if otp == session_otp:
+                
+                return Response({'status': 'Mobile Number Verified Please enter the New Mobile Number'})
+            
+            else:
+                return JsonResponse({'error': 'Invalid OTP'}, status=400)
+        
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            # Ensure that an error response is returned in case of an exception
+            return JsonResponse({'error': str(e)}, status=500)
+
+# Enter the Which you want mobile number
+class NewMobileNumberUpdate(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            
+            data = json.loads(request.body)
+            
+            mobile_number = data.get('mobile_number')
+            
+            # Generate OTP for SMS
+            otp_sms = ''.join(random.choices(string.digits, k=5))
+            
+            print(otp_sms)
+        
+            # Set OTP expiration time (5 minutes from now)
+            otp_expiry_time = timezone.now() + timedelta(minutes=5)
+            # otp_expiry_time = timezone.make_aware(otp_expiry_time)  # Ensure it's timezone-aware
+
+            # Token expiration set to 1 hour
+            token_expiry_time = timezone.now() + timedelta(hours=5)
+            
+            # request.session['otp_sms'] = otp_sms
+            # request.session['otp_expiry_time'] = otp_expiry_time.isoformat()
+            # request.session['mobile_number'] = mobile_number
+            
+            # If the mobile number doesn't start with +91, add it
+
+            # Create a temporary token containing the mobile number and OTP
+            temp_token = jwt.encode(
+                {
+                    'mobile_number': mobile_number,
+                    'otp': otp_sms,
+                    'exp': token_expiry_time.timestamp(),
+                    'expotp': otp_expiry_time.timestamp()
+                    
+                },
+                settings.SECRET_KEY,
+                algorithm='HS256'
+            )
+            
+            if not mobile_number.startswith('+91'):
+                mobile_numbers = '+91' + mobile_number
+
+            try:
+                message = client.messages.create(
+                    body=f'Your OTP is {otp_sms}. Do not share this with anyone.',
+                    from_=twilio_phone_number,
+                    to=mobile_numbers
+                )
+                print("Successfully")
+            except Exception as e:
+                return Response({'error': str(e)}, status=500)
+            
+            return Response({'message': 'OTP sent. Please Enter OTP to verify your account',
+                             'temp_token': temp_token  # Return temp token with OTP details
+                             }, status=200)
+                
+                
+        except json.JSONDecodeError:
+            return Response({'error': 'Invalid Json format'}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        
+
+# Verify OTP For Update the new mobile number
+class VerifyOTPForSMS(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        user = request.user
+        try:
+            data = json.loads(request.body)
+            
+            # Extract OTP and other session data
+            otp = data.get('otp')
+            temp_token = data.get('temp_token')
+
+            # Decode the temporary token
+            try:
+                payload = jwt.decode(temp_token, settings.SECRET_KEY, algorithms=['HS256'])
+                mobile_number = payload['mobile_number']
+                session_otp = payload['otp']
+                session_otp_expiry_time = datetime.datetime.fromtimestamp(payload['expotp'])
+                # session_otp_expiry_time = timezone.make_aware(session_otp_expiry_time)  # Ensure it's timezone-aware
+
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({'error': 'Temporary token expired'}, status=400)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=400)
+            
+            # Verify the OTP
+            if otp == session_otp:
+                # Check if the user with the given mobile number exists
+                try:
+                    user = user
+                
+                except UserData.DoesNotExist:
+                    # If the user does not exist, store the mobile number and OTP in the session for registration
+                    # request.session['mobile_number'] = mobile_number
+                    # request.session['otp_sms'] = otp
+
+                    return JsonResponse({
+                        'message': 'User does not exist. Please complete the registration.',
+                        'status': 'new_user',
+                        'temp_token': temp_token  # Return the same token for signup
+                    }, status=200)
+            
+            else:
+                return JsonResponse({'error': 'Invalid OTP'}, status=400)
+        
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            # Ensure that an error response is returned in case of an exception
+            return JsonResponse({'error': str(e)}, status=500)
+        
+
+        
+
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user_data = UserData.objects.get(user=request.user)  # Retrieve UserData using the related User instance
+            serializer = UserDataSerializer(user_data)
+            return Response(serializer.data)
+        except UserData.DoesNotExist:
+            return Response({"error": "UserData not found."}, status=404)
+
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 

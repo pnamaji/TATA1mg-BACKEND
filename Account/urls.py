@@ -20,6 +20,9 @@ urlpatterns = [
     path('api/login/email/verify-otp/', VerifyOTPForEmail.as_view(), name='login-email-verify-otp'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
 
+    # Get the User Data for Profile
+    path('api/profile/', UserProfileView.as_view(), name='user-profile'),
+
     # path('', include(router.urls)),
     # path('categories/<int:category_id>/types/', TypeOfCategoryViewSet.as_view({'get': 'list'}), name='types-of-category-list'),
     # path('categories/<int:category_id>/types/<int:type_of_category_id>/products/', ProductViewSet.as_view({'get': 'list'}), name='products-list'),

@@ -19,30 +19,6 @@ from django.core.exceptions import ValidationError
 # from phonenumber_field.modelfields import PhoneNumberField
 from django.contrib.auth.models import User, BaseUserManager, AbstractBaseUser
 
-        
-class Ad(models.Model):
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    image = models.ImageField(upload_to='ads/')
-    link = models.URLField()
-    start_date = models.DateField()
-    end_date = models.DateField()
-    is_active = models.BooleanField(default=True)
-
-    def is_active_now(self):
-        return self.start_date <= date.today() <= self.end_date
-    
-    def save(self, *args, **kwargs):
-        self.is_active = self.is_active_now()
-        super().save(*args, **kwargs)
-
-    def clean(self):
-        if self.end_date < self.start_date:
-            raise ValidationError("End date cannot be earlier than start date.")
-        super().clean()
-
-    def __str__(self):
-        return self.title
 
 class Customer(models.Model):
     CHOICE_TYPE = [
@@ -67,6 +43,7 @@ class Customer(models.Model):
     
 class Tag(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    views = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
@@ -79,6 +56,8 @@ class Category(models.Model):
     description = models.TextField(blank=True, null=True)
     tags = models.ManyToManyField(Tag, related_name='categories')
     img = models.ImageField(upload_to=file_upload_to_category, blank=True, null=True)
+    views = models.IntegerField(default=0)
+    
 
     def __str__(self):
         return self.name
@@ -92,9 +71,36 @@ class TypesOfCategory(models.Model):
     tags = models.ManyToManyField(Tag, related_name='types_of_category')
     description = models.TextField(blank=True, null=True)
     img = models.ImageField(upload_to=file_upload_to_categorytype, blank=True, null=True)
+    views = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
+    
+
+class Ad(models.Model):
+    title = models.CharField(max_length=255)
+    category = models.ManyToManyField(Category, related_name='ad')
+    description = models.TextField()
+    image = models.ImageField(upload_to='ads/')
+    link = models.URLField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+
+    def is_active_now(self):
+        return self.start_date <= date.today() <= self.end_date
+    
+    def save(self, *args, **kwargs):
+        self.is_active = self.is_active_now()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        if self.end_date < self.start_date:
+            raise ValidationError("End date cannot be earlier than start date.")
+        super().clean()
+
+    def __str__(self):
+        return self.title
     
 def file_upload_to_brand(instance, filename):
     return f'Brand/{filename}'
@@ -121,10 +127,12 @@ class Marketer(models.Model):
     
 class Brand(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    category = models.ManyToManyField(Category, related_name='brand')
     address = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     tags = models.ManyToManyField(Tag, related_name='brands_tags')
     img = models.ImageField(upload_to=file_upload_to_brand, null=True, blank=True)
+    views = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
