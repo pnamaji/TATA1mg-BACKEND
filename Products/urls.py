@@ -43,11 +43,16 @@ router.register(r'api/types-of-category', TypesOfCategoryViewSet, basename='type
 router.register(r'api/brands', CategoryWiseBrandsViewSet, basename='Category Wise Brands')     # URL products/api/brands/by-category/<category_id>/
 router.register(r'api/all-products', CategoryWiseAllProductsViewSet, basename='Category Wise All Products')     # URL products/api/all-products/by-category/5/
 
+# Type of Category wise
+router.register(r'api/all-products', TypesOfCategoryWiseAllProductsViewSet, basename='Types of Category Wise All Products')     # URL products/api/all-products/by-types-of-category/5/
+
+
 # Handle Views Count
 router.register(r'api/types-of-category', TypesOfCategoryViewsHandleViewSet, basename='types-of-category-handle-views')    # URL products/api/types-of-category/<id>/add-view/
 router.register(r'api/category', CategoryViewsHandleViewSet, basename='category-handle-views')    # URL products/api/category/<id>/add-view/
 router.register(r'api/product', ProductsViewsHandleViewSet, basename='product-handle-views')    # URL products/api/product/<id>/add-view/
 router.register(r'api/tags', TagsViewsHandleViewSet, basename='tags-handle-views')    # URL products/api/tags/<id>/add-view/
+
 
 
 router.register(r'api/manufacturer', ManufacturerModelViewSet)

@@ -25,7 +25,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 
-# Views Implementing handle
+#========================================================== Views Implementing handle ============================================================================
 
 class TagsViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
@@ -94,6 +94,21 @@ class TypesOfCategoryViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"message": "View added successfully", "views": types_of_category.views}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# ============================================================Type of Category Wise API's ========================================================================
+
+class TypesOfCategoryWiseAllProductsViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+
+    @action(detail=False, methods=['get'], url_path='by-types-of-category/(?P<typesofcategory_id>[^/.]+)')
+    def by_category(self, request, typesofcategory_id=None):
+        products = Product.objects.filter(categorytype__id=typesofcategory_id).distinct()
+        if not products.exists():
+            return Response({"error": "No products for this category."}, status=404)
+        serializer = ProductSerializer(products, many=True, context={'request': request})
+        return Response(serializer.data)
+
+# ======================================================= Home Page Category Wise API's ==========================================================================
 
 class CategoryWiseAllProductsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
