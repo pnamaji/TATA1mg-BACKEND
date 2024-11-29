@@ -1,5 +1,10 @@
 from rest_framework import serializers
 from .models import *
+
+class MarketerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Marketer
+        fields = ['id', 'name', 'address']
     
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -58,6 +63,7 @@ class BrandSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
     # brand = BrandSerializer(many=True)
+    marketer = MarketerSerializer()
     category = CategorySerializer(many=True)
     categorytype = TypeOFCategorySerializer(many=True)
     
@@ -137,11 +143,6 @@ class CustomerSerializer(serializers.ModelSerializer):
 #         ]
 
 #         return ratings_percentage
-    
-class MarketerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Marketer
-        fields = ['id', 'name', 'address']
 
 class ManufacturerSerializer(serializers.ModelSerializer):
     class Meta:
