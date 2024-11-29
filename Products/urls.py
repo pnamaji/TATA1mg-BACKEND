@@ -38,14 +38,15 @@ router.register(r'api/product-rating', ReviewViewSet, basename='product Rating')
 router.register(r'api/product-details', ProductDetailsViewSet, basename='product details')    # this is url /products/api/product-details/<int:product_id>/
 router.register(r'api/product-information', ProductInformationViewSet, basename='other Information')    # this is url /products/api/other-rating/<int:product_id>/
 
-# Home page Category Wise
+# Category Wise
 router.register(r'api/types-of-category', TypesOfCategoryViewSet, basename='types-of-category')     # URL products/api/types-of-category/by-category/<category_id>/ 
 router.register(r'api/brands', CategoryWiseBrandsViewSet, basename='Category Wise Brands')     # URL products/api/brands/by-category/<category_id>/
 router.register(r'api/all-products', CategoryWiseAllProductsViewSet, basename='Category Wise All Products')     # URL products/api/all-products/by-category/5/
 
 # Type of Category wise
 router.register(r'api/all-products', TypesOfCategoryWiseAllProductsViewSet, basename='Types of Category Wise All Products')     # URL products/api/all-products/by-types-of-category/5/
-
+router.register(r'api/brands', TypeOfCategoryWiseBrandsViewSet, basename='Type of Category Wise Brands')     # URL products/api/brands/by-types-of-category/<category_id>/
+router.register(r'api/products', BrandWiseProductsViewSet, basename='Brand wise Products')           #  URL products/api/products/by-brand/<brand_id>/
 
 # Handle Views Count
 router.register(r'api/types-of-category', TypesOfCategoryViewsHandleViewSet, basename='types-of-category-handle-views')    # URL products/api/types-of-category/<id>/add-view/

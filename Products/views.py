@@ -97,6 +97,28 @@ class TypesOfCategoryViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
 
 # ============================================================Type of Category Wise API's ========================================================================
 
+class BrandWiseProductsViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Product.objects.all()
+
+    @action(detail=False, methods=['get'], url_path='by-brand/(?P<brand_id>[^/.]+)')
+    def by_category(self, request, brand_id=None):
+        product = Product.objects.filter(brand__id=brand_id).distinct()
+        if not product.exists():
+            return Response({"error": "No product for this category."}, status=404)
+        serializer = ProductSerializer(product, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class TypeOfCategoryWiseBrandsViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Brand.objects.all()
+
+    @action(detail=False, methods=['get'], url_path='by-types-of-category/(?P<typeofcategory_id>[^/.]+)')
+    def by_category(self, request, typeofcategory_id=None):
+        brands = Brand.objects.filter(typeofcategory__id=typeofcategory_id).distinct()
+        if not brands.exists():
+            return Response({"error": "No brands for this category."}, status=404)
+        serializer = BrandSerializer(brands, many=True, context={'request': request})
+        return Response(serializer.data)
+
 class TypesOfCategoryWiseAllProductsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
 

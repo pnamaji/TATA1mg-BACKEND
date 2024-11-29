@@ -52,7 +52,7 @@ class BrandSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'category', 'address', 'description', 'img', 'tags']
+        fields = ['id', 'name', 'category', 'typeofcategory', 'address', 'description', 'img', 'tags']
 
     def get_img_url(self, obj):
         request = self.context.get('request')

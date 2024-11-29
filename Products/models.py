@@ -128,6 +128,7 @@ class Marketer(models.Model):
 class Brand(models.Model):
     name = models.CharField(max_length=255, unique=True)
     category = models.ManyToManyField(Category, related_name='brand')
+    typeofcategory = models.ManyToManyField(TypesOfCategory, related_name='brand')
     address = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     tags = models.ManyToManyField(Tag, related_name='brands_tags')
