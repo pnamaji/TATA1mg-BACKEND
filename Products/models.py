@@ -82,7 +82,7 @@ class TypesOfCategory(models.Model):
     description = models.TextField(blank=True, null=True)
     img = models.ImageField(upload_to=file_upload_to_categorytype, blank=True, null=True)
     views = models.IntegerField(default=0)
-    ad = models.ForeignKey(Ad, related_name='types_of_category', blank=True, null=True, on_delete=models.CASCADE)
+    ad = models.ManyToManyField(Ad, related_name='types_of_category', blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -95,7 +95,7 @@ class Category(models.Model):
     views = models.IntegerField(default=0)
     subcategory = models.ManyToManyField(TypesOfCategory, related_name='category')
     brand = models.ManyToManyField(Brand, related_name='category')
-    ad = models.ForeignKey(Ad, related_name='categories', blank=True, null=True, on_delete=models.CASCADE)
+    ad = models.ManyToManyField(Ad, related_name='categories', blank=True, null=True)
 
     def __str__(self):
         return self.name

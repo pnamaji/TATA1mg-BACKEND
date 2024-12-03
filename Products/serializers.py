@@ -16,7 +16,7 @@ class TagSerializer(serializers.ModelSerializer):
 class AdSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ad
-        fields = '__all__'
+        fields = ['id', 'title', 'description', 'img', 'link', 'start_date', 'end_date', 'is_active']
 
 class BrandSerializer(serializers.ModelSerializer):
     tags = serializers.SerializerMethodField()
@@ -39,14 +39,22 @@ class TypeOFCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'img', 'views', 'ad', 'brand', 'tags']
 
     def get_ad(self, obj):
-        # Return only 'id' and 'name' for each brand
-        ads = obj.ad.values('id', 'title', 'img', 'link')
-        request = self.context.get('request')
-        for ad in ads:
-            if ad['img']:  # Check if the image field exists
-                ad['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), ad['img'])
-        return ad
+        if not obj.ad or not hasattr(obj.ad, 'values'):  # Check if 'ad' exists and supports '.values()'
+            return []
 
+        try:
+            ads = obj.ad.values('id', 'title', 'img', 'link')  # Query related ads
+        except AttributeError:
+            return []  # Return an empty list if 'values' raises an error
+
+        request = self.context.get('request')  # Get the request context
+        if request:  # Ensure request context exists
+            for ad in ads:
+                if ad.get('img'):  # Check if the 'img' field is present and not empty
+                    # Build absolute URL for the image
+                    ad['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), ad['img'])
+        return ads  # Return the modified ads list
+        
     def get_brand(self, obj):
         # Return only 'id', 'name', and a properly formatted 'img' URL for each brand
         brands = obj.brand.values('id', 'name', 'img')
