@@ -27,11 +27,15 @@ class BrandSerializer(serializers.ModelSerializer):
         return None  # Return None if no image exists
 
 class TypeOFCategorySerializer(serializers.ModelSerializer):
+    brand = serializers.StringRelatedField(many=True)  # Or use another serializer
+    tags = serializers.StringRelatedField(many=True)   # Or use another serializer
+
     class Meta:
         model = TypesOfCategory
         fields = ['id', 'name', 'brand', 'tags', 'description', 'img', 'views']
 
 class CategorySerializer(serializers.ModelSerializer):
+    brand = BrandSerializer(many=True, read_only=True)
     subcategory = TypeOFCategorySerializer(many=True, read_only=True)  # Nested Serializer
 
     class Meta:

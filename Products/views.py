@@ -318,7 +318,7 @@ class BrandWiseProductsViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 class TypeOfCategoryWiseBrandsViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Brand.objects.all()
+    queryset = TypesOfCategory.objects.all()
 
     @action(detail=False, methods=['get'], url_path='by-types-of-category/(?P<typeofcategory_id>[^/.]+)')
     def by_category(self, request, typeofcategory_id=None):
@@ -1035,11 +1035,8 @@ class CategoryMobileViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'error': 'Category not found'}, status=404)
         
 class TypeOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TypesOfCategory.objects.all()
     serializer_class = TypeOFCategorySerializer
-
-    def get_queryset(self):
-        category_id = self.kwargs.get('category_id')
-        return TypesOfCategory.objects.filter(category_id=category_id)
     
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductSerializer

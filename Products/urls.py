@@ -40,14 +40,14 @@ router.register(r'api/product-information', ProductInformationViewSet, basename=
 
 # Category Wise
 router.register(r'api/categories', CategoryViewSet, basename='category')         # URL for exclude /products/api/categories/exclude/<category_id>/                        you can get this url through type of categories and you can exclude category list
-router.register(r'api/types-of-category', TypesOfCategoryViewSet, basename='types-of-category')     # URL products/api/types-of-category/by-category/<category_id>/ 
+router.register(r'api/types-of-categories', TypesOfCategoryViewSet, basename='types-of-category')     # URL products/api/types-of-category/by-category/<category_id>/ 
 router.register(r'api/brands', CategoryWiseBrandsViewSet, basename='Category Wise Brands')     # URL products/api/brands/by-category/<category_id>/
 router.register(r'api/all-products', CategoryWiseAllProductsViewSet, basename='Category Wise All Products')     # URL products/api/all-products/by-category/5/
 
 # Type of Category wise
 router.register(r'api/all-products', TypesOfCategoryWiseAllProductsViewSet, basename='Types of Category Wise All Products')     # URL products/api/all-products/by-types-of-category/5/
 router.register(r'api/brands', TypeOfCategoryWiseBrandsViewSet, basename='Type of Category Wise Brands')     # URL products/api/brands/by-types-of-category/<category_id>/
-router.register(r'api/products', BrandWiseProductsViewSet, basename='Brand wise Products')           #  URL products/api/products/by-brand/<brand_id>/
+router.register(r'api/products', BrandWiseProductsViewSet, basename='Brand wise Products')          #  URL products/api/products/by-brand/<brand_id>/
 
 # Handle Views Count
 router.register(r'api/types-of-category', TypesOfCategoryViewsHandleViewSet, basename='types-of-category-handle-views')    # URL products/api/types-of-category/<id>/add-view/
