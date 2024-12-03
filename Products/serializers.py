@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import *
+from urllib.parse import urljoin
+
 
 class MarketerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,93 +16,101 @@ class TagSerializer(serializers.ModelSerializer):
 class BrandSerializer(serializers.ModelSerializer):
     # country_of_origin = CountrySerializer()
     # img = serializers.ImageField(use_url=True)
-    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
+    tags = serializers.SerializerMethodField()
 
     class Meta:
         model = Brand
         fields = ['id', 'name', 'address', 'description', 'img', 'tags']
 
-    def get_img_url(self, obj):
-        request = self.context.get('request')
-        if obj.img:  # Ensure the image is associated
-            return request.build_absolute_uri(obj.img.url)
-        return None  # Return None if no image exists
+    def get_tags(self, obj):
+        # Return only 'id' and 'name' for each brand
+        return obj.tags.values('id', 'name')
+
+    # def get_img_url(self, obj):
+    #     request = self.context.get('request')
+    #     if obj.img:  # Ensure the image is associated
+    #         return request.build_absolute_uri(obj.img.url)
+    #     return None  # Return None if no image exists
 
 class TypeOFCategorySerializer(serializers.ModelSerializer):
-    brand = serializers.StringRelatedField(many=True)  # Or use another serializer
-    tags = serializers.StringRelatedField(many=True)   # Or use another serializer
+    brand = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
 
     class Meta:
         model = TypesOfCategory
-        fields = ['id', 'name', 'brand', 'tags', 'description', 'img', 'views']
+        fields = ['id', 'name', 'description', 'img', 'views', 'brand', 'tags']
+
+    def get_brand(self, obj):
+        # Return only 'id', 'name', and a properly formatted 'img' URL for each brand
+        brands = obj.brand.values('id', 'name', 'img')
+        request = self.context.get('request')
+        for brand in brands:
+            if brand['img']:  # Check if the image field exists
+                brand['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), brand['img'])
+        return brands
+    
+    def get_tags(self, obj):
+        # Return only 'id' and 'name' for each brand
+        return obj.tags.values('id', 'name')
 
 class CategorySerializer(serializers.ModelSerializer):
-    brand = BrandSerializer(many=True, read_only=True)
-    subcategory = TypeOFCategorySerializer(many=True, read_only=True)  # Nested Serializer
+    brand = serializers.SerializerMethodField()  # Custom field logic for brands
+    subcategory = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'description', 'tags', 'brand', 'img', 'views', 'subcategory']
-      
-# class CategorySerializer(serializers.ModelSerializer):
-#     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
-#     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
-#     # img = serializers.ImageField(use_url=True)
+        fields = ['id', 'name', 'description', 'img', 'views', 'tags', 'brand', 'subcategory']
 
-#     class Meta:
-#         model = Category
-#         fields = ['id', 'name', 'subcategory', 'brand', 'tags', 'description', 'img', 'views']
-
-#     def get_img_url(self, obj):
-#         request = self.context.get('request')
-#         if obj.img:  # Ensure the image is associated
-#             return request.build_absolute_uri(obj.img.url)
-#         return None  # Return None if no image exists
-
-# class TypeOFCategorySerializer(serializers.ModelSerializer):
-#     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
-#     # img = serializers.ImageField(use_url=True)
-
-#     class Meta:
-#         model = TypesOfCategory
-#         fields = ['id', 'name', 'tags', 'brand', 'description', 'img', 'views']
-
-#     def get_img_url(self, obj):
-#         request = self.context.get('request')
-#         if obj.img:  # Ensure the image is associated
-#             return request.build_absolute_uri(obj.img.url)
-#         return None  # Return None if no image exists
+    def get_subcategory(self, obj):
+        request = self.context.get('request')  # Get the request object from the context
+        subcategories = obj.subcategory.values('id', 'name', 'img')
+        for subcategory in subcategories:
+            if 'img' in subcategory and subcategory['img']:
+                subcategory['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), subcategory['img'])  # Generate full URL
+        return subcategories
+    
+    def get_brand(self, obj):
+        request = self.context.get('request')  # Get the request object from the context
+        brands = obj.brand.values('id', 'name', 'img')
+        for brand in brands:
+            if 'img' in brand and brand['img']:
+                brand['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), brand['img'])  # Generate full URL
+        return brands
+    
+    def get_tags(self, obj):
+        # Return only 'id' and 'name' for each brand
+        return obj.tags.values('id', 'name')
     
 class CountrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Country
         fields = ['id', 'name']
 
-# class BrandSerializer(serializers.ModelSerializer):
-#     # country_of_origin = CountrySerializer()
-#     # img = serializers.ImageField(use_url=True)
-#     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
-
-#     class Meta:
-#         model = Brand
-#         fields = ['id', 'name', 'category', 'typeofcategory', 'address', 'description', 'img', 'tags']
-
-#     def get_img_url(self, obj):
-#         request = self.context.get('request')
-#         if obj.img:  # Ensure the image is associated
-#             return request.build_absolute_uri(obj.img.url)
-#         return None  # Return None if no image exists
-    
 class ProductSerializer(serializers.ModelSerializer):
-    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
-    # brand = BrandSerializer(many=True)
-    marketer = MarketerSerializer()
-    category = CategorySerializer(many=True)
-    categorytype = TypeOFCategorySerializer(many=True)
+    tags = serializers.SerializerMethodField()  # assuming a ManyToMany relationship
+    marketer = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+    categorytype = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
         fields = ['id', 'name', 'unit_type', 'quantity', 'stock', 'image',  'marketer', 'is_on_sale', 'sale_start_date', 'sale_end_date', 'selling_price', 'discounted_price', 'discount_percentage', 'views','average_rating', 'num_reviews', 'num_ratings', 'recent_reviews', 'review_summary', 'prescription_required', 'sku', 'expected_delivery_date', 'views','brand', 'tags', 'category', 'categorytype']
+
+    def get_tags(self, obj):
+        # Return only 'id' and 'name' for each brand
+        return obj.tags.values('id', 'name')
+    
+    def get_marketer(self, obj):
+        return obj.marketer.values('id', 'name')
+    
+    def get_category(self, obj):
+        # Return only 'id' and 'name' for each brand
+        return obj.category.values('id', 'name')
+    
+    def get_categorytype(self, obj):
+        # Return only 'id' and 'name' for each brand
+        return obj.categorytype.values('id', 'name')
 
 class ProductDetailsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -114,25 +124,9 @@ class ProductHighlightSerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    # image = serializers.SerializerMethodField()
-
     class Meta:
         model = ProductImage
         fields = ['id', 'image']
-
-    # def get_image(self, obj):
-    #     request = self.context.get('request')
-    #     if request:
-    #         return request.build_absolute_uri(obj.image.url)
-    #     return f"{settings.MEDIA_URL}{obj.image.url}"
-
-    # def get_image(self, obj):
-    #     if obj.image:  # Ensure the image exists
-    #         request = self.context.get('request')
-    #         if request:
-    #             return request.build_absolute_uri(obj.image.url)
-    #         return obj.image.url  # Fallback if no request context
-    #     return None  # If no image is uploaded
 
     def validate(self, data):
         # Check if address_type is 'other' and custom_address_type is empty
@@ -141,31 +135,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
                 "custom_address_type": "This field is required when address type is 'Other'."
             })
         return data
-
-# class ReviewSerializer(serializers.ModelSerializer):
-#     ratings_breakdown = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = Review
-#         fields = ['id', 'user', 'product', 'rating', 'review_text', 'review_date', 'ratings_breakdown']
-
-#     def get_ratings_breakdown(self, obj):
-#         # Get all reviews for the product
-#         reviews = Review.objects.filter(product=obj.product)
-
-#         # Calculate total reviews
-#         total_reviews = reviews.count()
-
-#         # Count ratings for each star (1-5)
-#         ratings_count = {star: reviews.filter(rating=star).count() for star in range(1, 6)}
-
-#         # Calculate percentages
-#         ratings_percentage = [
-#             {"rating": star, "percentage": round((count / total_reviews) * 100, 2) if total_reviews > 0 else 0}
-#             for star, count in ratings_count.items()
-#         ]
-
-#         return ratings_percentage
 
 class ManufacturerSerializer(serializers.ModelSerializer):
     class Meta:

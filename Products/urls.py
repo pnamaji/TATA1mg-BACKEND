@@ -40,11 +40,11 @@ router.register(r'api/product-information', ProductInformationViewSet, basename=
 
 # Category Wise
 router.register(r'api/categories', CategoryViewSet, basename='category')         # URL for exclude /products/api/categories/exclude/<category_id>/                        you can get this url through type of categories and you can exclude category list
-router.register(r'api/types-of-categories', TypesOfCategoryViewSet, basename='types-of-category')     # URL products/api/types-of-category/by-category/<category_id>/ 
 router.register(r'api/brands', CategoryWiseBrandsViewSet, basename='Category Wise Brands')     # URL products/api/brands/by-category/<category_id>/
 router.register(r'api/all-products', CategoryWiseAllProductsViewSet, basename='Category Wise All Products')     # URL products/api/all-products/by-category/5/
 
 # Type of Category wise
+router.register(r'api/types-of-categories', TypesOfCategoryViewSet, basename='types of category brands')         # URL for exclude /products/api/types-of-categories/exclude/<category_id>/                        you can get this url through type of categories and you can exclude category list
 router.register(r'api/all-products', TypesOfCategoryWiseAllProductsViewSet, basename='Types of Category Wise All Products')     # URL products/api/all-products/by-types-of-category/5/
 router.register(r'api/brands', TypeOfCategoryWiseBrandsViewSet, basename='Type of Category Wise Brands')     # URL products/api/brands/by-types-of-category/<category_id>/
 router.register(r'api/products', BrandWiseProductsViewSet, basename='Brand wise Products')          #  URL products/api/products/by-brand/<brand_id>/
@@ -73,10 +73,10 @@ urlpatterns = [
     path('messages/', views.make_messages, name='make_messages'),
 
     # view Type-of-Category
-    path('category/<int:category_id>/types/', TypeOfCategoryAPIView.as_view(), name='types_of_category'),
+    # path('category/<int:category_id>/types/', TypeOfCategoryAPIView.as_view(), name='types_of_category'),
     
     # load products 
-    path('category/type/<int:type_of_category_id>/products/', ProductAPIView.as_view(), name='products_by_type'),
+    # path('category/type/<int:type_of_category_id>/products/', ProductAPIView.as_view(), name='products_by_type'),
 
     # Get SKU to all data of product
     path('api/products/<str:sku>/', ProductDetailAPIView.as_view(), name='Product Details API View'),

@@ -317,6 +317,20 @@ class BrandWiseProductsViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = ProductSerializer(product, many=True, context={'request': request})
         return Response(serializer.data)
 
+class TypesOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TypesOfCategory.objects.all()
+    serializer_class = TypeOFCategorySerializer
+
+    @action(detail=False, methods=['get'], url_path=r'exclude/(?P<subcategory_id>\d+)')
+    def exclude_category(self, request, subcategory_id=None):
+        # Exclude the category with the given ID
+        categorytypes = TypesOfCategory.objects.exclude(id=subcategory_id)
+
+        # Pass the request context to the serializer
+        serializer = TypeOFCategorySerializer(categorytypes, many=True, context={'request': request})
+        
+        return Response(serializer.data)
+
 class TypeOfCategoryWiseBrandsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TypesOfCategory.objects.all()
 
@@ -380,17 +394,6 @@ class CategoryWiseBrandsViewSet(viewsets.ReadOnlyModelViewSet):
         if not brands.exists():
             return Response({"error": "No brands for this category."}, status=404)
         serializer = BrandSerializer(brands, many=True, context={'request': request})
-        return Response(serializer.data)
-
-class TypesOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = TypesOfCategory.objects.all()
-
-    @action(detail=False, methods=['get'], url_path='by-category/(?P<category_id>[^/.]+)')
-    def by_category(self, request, category_id=None):
-        types_of_category = TypesOfCategory.objects.filter(category__id=category_id).distinct()
-        if not types_of_category.exists():
-            return Response({"error": "No types found for this category."}, status=404)
-        serializer = TypeOFCategorySerializer(types_of_category, many=True, context={'request': request})
         return Response(serializer.data)
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1033,10 +1036,6 @@ class CategoryMobileViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(serializer.data)
         except Category.DoesNotExist:
             return Response({'error': 'Category not found'}, status=404)
-        
-class TypeOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = TypesOfCategory.objects.all()
-    serializer_class = TypeOFCategorySerializer
     
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductSerializer
