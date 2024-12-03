@@ -10,40 +10,6 @@ class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ['id', 'name', 'views']
-      
-class CategorySerializer(serializers.ModelSerializer):
-    # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
-    tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
-    # img = serializers.ImageField(use_url=True)
-
-    class Meta:
-        model = Category
-        fields = ['id', 'name', 'tags', 'description', 'img', 'views']
-
-    def get_img_url(self, obj):
-        request = self.context.get('request')
-        if obj.img:  # Ensure the image is associated
-            return request.build_absolute_uri(obj.img.url)
-        return None  # Return None if no image exists
-
-class TypeOFCategorySerializer(serializers.ModelSerializer):
-    # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
-    # img = serializers.ImageField(use_url=True)
-
-    class Meta:
-        model = TypesOfCategory
-        fields = ['id', 'name', 'tags', 'category', 'description', 'img', 'views']
-
-    def get_img_url(self, obj):
-        request = self.context.get('request')
-        if obj.img:  # Ensure the image is associated
-            return request.build_absolute_uri(obj.img.url)
-        return None  # Return None if no image exists
-    
-class CountrySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Country
-        fields = ['id', 'name']
 
 class BrandSerializer(serializers.ModelSerializer):
     # country_of_origin = CountrySerializer()
@@ -52,13 +18,74 @@ class BrandSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'category', 'typeofcategory', 'address', 'description', 'img', 'tags']
+        fields = ['id', 'name', 'address', 'description', 'img', 'tags']
 
     def get_img_url(self, obj):
         request = self.context.get('request')
         if obj.img:  # Ensure the image is associated
             return request.build_absolute_uri(obj.img.url)
         return None  # Return None if no image exists
+
+class TypeOFCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TypesOfCategory
+        fields = ['id', 'name', 'brand', 'tags', 'description', 'img', 'views']
+
+class CategorySerializer(serializers.ModelSerializer):
+    subcategory = TypeOFCategorySerializer(many=True, read_only=True)  # Nested Serializer
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'description', 'tags', 'brand', 'img', 'views', 'subcategory']
+      
+# class CategorySerializer(serializers.ModelSerializer):
+#     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
+#     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
+#     # img = serializers.ImageField(use_url=True)
+
+#     class Meta:
+#         model = Category
+#         fields = ['id', 'name', 'subcategory', 'brand', 'tags', 'description', 'img', 'views']
+
+#     def get_img_url(self, obj):
+#         request = self.context.get('request')
+#         if obj.img:  # Ensure the image is associated
+#             return request.build_absolute_uri(obj.img.url)
+#         return None  # Return None if no image exists
+
+# class TypeOFCategorySerializer(serializers.ModelSerializer):
+#     # products = ProductSerializer(many=True, read_only=True)  # Products will be serialized for each category type
+#     # img = serializers.ImageField(use_url=True)
+
+#     class Meta:
+#         model = TypesOfCategory
+#         fields = ['id', 'name', 'tags', 'brand', 'description', 'img', 'views']
+
+#     def get_img_url(self, obj):
+#         request = self.context.get('request')
+#         if obj.img:  # Ensure the image is associated
+#             return request.build_absolute_uri(obj.img.url)
+#         return None  # Return None if no image exists
+    
+class CountrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Country
+        fields = ['id', 'name']
+
+# class BrandSerializer(serializers.ModelSerializer):
+#     # country_of_origin = CountrySerializer()
+#     # img = serializers.ImageField(use_url=True)
+#     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
+
+#     class Meta:
+#         model = Brand
+#         fields = ['id', 'name', 'category', 'typeofcategory', 'address', 'description', 'img', 'tags']
+
+#     def get_img_url(self, obj):
+#         request = self.context.get('request')
+#         if obj.img:  # Ensure the image is associated
+#             return request.build_absolute_uri(obj.img.url)
+#         return None  # Return None if no image exists
     
 class ProductSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True)  # assuming a ManyToMany relationship
@@ -102,14 +129,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
     #             return request.build_absolute_uri(obj.image.url)
     #         return obj.image.url  # Fallback if no request context
     #     return None  # If no image is uploaded
-
-class CustomerSerializer(serializers.ModelSerializer):
-    # Make user a read-only field
-    user = serializers.ReadOnlyField(source='user.username')
-
-    class Meta:
-        model = Customer
-        fields = '__all__'  # or specify fields like ['id', 'full_name', 'phone_number', 'address', 'city', 'state', 'zipcode']
 
     def validate(self, data):
         # Check if address_type is 'other' and custom_address_type is empty

@@ -9,6 +9,8 @@ from django.db.models import Count, Sum, Q
 from datetime import timedelta
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.filters import SearchFilter
+from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -17,13 +19,220 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import generics, permissions
 from .models import *
-from Account.models import Order, OrderItem
-from Account.serializers import OrderItemSerializer, OrderSerializer
+from Account.models import Order, OrderItem, CartItem
+from Account.serializers import OrderItemSerializer, OrderSerializer, CartItemSerializer
 from .serializers import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 import random
+
+# =============================================== Add Card, Order Product, Add Address, Apply Coupon =============================================================
+
+class OrderViewSet(ViewSet):
+    """
+    Order operations: Place order and list user orders.
+    """
+
+    def list(self, request):
+        """
+        List all orders of the authenticated user.
+        """
+        user = request.user
+        orders = Order.objects.filter(user=user)
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request):
+        """
+        Place an order using cart items and clear the cart.
+        """
+        user = request.user
+        cart_items = CartItem.objects.filter(user=user)
+
+        if not cart_items.exists():
+            return Response({'message': 'Cart is empty!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        total_price = sum(item.product.price * item.quantity for item in cart_items)
+
+        # Create the order
+        order = Order.objects.create(
+            user=user,
+            total_price=total_price,
+            shipping_address=request.data.get('shipping_address', 'Default Address'),
+        )
+
+        # Create OrderItems and link to Order
+        for item in cart_items:
+            OrderItem.objects.create(
+                user=user,
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                price=item.product.price * item.quantity
+            )
+
+        # Clear the cart
+        cart_items.delete()
+
+        return Response({'message': 'Order placed successfully!', 'order_id': order.id}, status=status.HTTP_201_CREATED)
+
+class CartViewSet(ViewSet):
+    """
+    Cart operations: Add, View, and Clear cart.
+    """
+
+    def list(self, request):
+        """
+        View all cart items for the authenticated user.
+        """
+        user = request.user
+        cart_items = CartItem.objects.filter(user=user)
+        serializer = CartItemSerializer(cart_items, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request):
+        """
+        Add a product to the cart or update the quantity if it already exists.
+        """
+        user = request.user
+        product_id = request.data.get('product_id')
+        quantity = request.data.get('quantity', 1)
+
+        product = get_object_or_404(Product, id=product_id)
+
+        # Check if product already in cart
+        cart_item, created = CartItem.objects.get_or_create(user=user, product=product)
+        if not created:
+            cart_item.quantity += int(quantity)
+        else:
+            cart_item.quantity = int(quantity)
+
+        cart_item.save()
+        return Response({'message': 'Product added to cart successfully!'}, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, pk=None):
+        """
+        Remove a specific item from the cart or clear the entire cart.
+        """
+        user = request.user
+        if pk:
+            # Delete a specific cart item
+            cart_item = get_object_or_404(CartItem, id=pk, user=user)
+            cart_item.delete()
+            return Response({'message': 'Cart item removed successfully!'}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            # Clear entire cart
+            CartItem.objects.filter(user=user).delete()
+            return Response({'message': 'Cart cleared successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
+class OrderCancelAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        try:
+            # Fetch the order to be canceled
+            order = Order.objects.get(id=order_id, user=request.user)
+
+            # Check if the order is already canceled or completed
+            if order.status in ['canceled', 'completed']:
+                return Response({
+                    "success": False,
+                    "message": "Order cannot be canceled as it is already processed."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Serialize and update the order status to "canceled"
+            serializer = OrderSerializer(order, data={}, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Order canceled successfully.",
+                    "order": serializer.data
+                }, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Order.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Order not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+class OrderListView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Fetch orders only for the logged-in user
+        return Order.objects.filter(user=self.request.user).order_by('-order_date')
+
+class OrderDetailView(generics.RetrieveAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user)
+
+class CouponApplyAPIView(APIView):
+    """
+    API View to apply a coupon and calculate the discount based on conditions.
+    """
+
+    def post(self, request, *args, **kwargs):
+        code = request.data.get('code')
+        cart_items = request.data.get('cart_items', [])
+
+        if not cart_items:
+            return Response(
+                {"success": False, "message": "No items in cart."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Calculate total amount from cart items
+        total_amount = sum(item['price'] for item in cart_items)
+        is_first_order = not Order.objects.filter(user=request.user).exists()
+        products = [get_object_or_404(Product, id=item['product_id']) for item in cart_items]
+
+        try:
+            # Find the coupon if it exists and is within the valid date range
+            coupon = Coupon.objects.get(code=code, valid_from__lte=timezone.now(), valid_to__gte=timezone.now())
+
+            # Check if the coupon is valid
+            if coupon.is_valid(total_amount, products, is_first_order):
+                discount = 0
+
+                # Calculate discount based on coupon type
+                if coupon.is_percentage:
+                    discount = total_amount * (coupon.discount / 100)
+                else:
+                    discount = coupon.discount
+
+                # Update coupon usage count if needed
+                coupon.used_count += 1
+                coupon.save()
+
+                # Send successful response with discount details
+                return Response({
+                    "success": True,
+                    "discount": discount,
+                    "final_total": total_amount - discount,
+                    "message": f"Coupon '{code}' applied successfully."
+                }, status=status.HTTP_200_OK)
+            else:
+                # Invalid coupon usage for this cart or conditions not met
+                return Response({
+                    "success": False,
+                    "message": "Coupon not valid for cart items or does not meet requirements."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Coupon.DoesNotExist:
+            # Invalid coupon code
+            return Response({
+                "success": False,
+                "message": "Invalid coupon code."
+            }, status=status.HTTP_404_NOT_FOUND)
 
 #========================================================== Views Implementing handle ============================================================================
 
@@ -104,7 +313,7 @@ class BrandWiseProductsViewSet(viewsets.ReadOnlyModelViewSet):
     def by_category(self, request, brand_id=None):
         product = Product.objects.filter(brand__id=brand_id).distinct()
         if not product.exists():
-            return Response({"error": "No product for this category."}, status=404)
+            return Response({"error": "No product for this Brand."}, status=404)
         serializer = ProductSerializer(product, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -115,7 +324,7 @@ class TypeOfCategoryWiseBrandsViewSet(viewsets.ReadOnlyModelViewSet):
     def by_category(self, request, typeofcategory_id=None):
         brands = Brand.objects.filter(typeofcategory__id=typeofcategory_id).distinct()
         if not brands.exists():
-            return Response({"error": "No brands for this category."}, status=404)
+            return Response({"error": "No brands for this type of category."}, status=404)
         serializer = BrandSerializer(brands, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -131,6 +340,25 @@ class TypesOfCategoryWiseAllProductsViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 # ======================================================= Home Page Category Wise API's ==========================================================================
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    filter_backends = (SearchFilter,)
+    search_fields = ['brand__name']  # Filter by brand name
+
+    @action(detail=False, methods=['get'], url_path='filter-by-brands')
+    def filter_by_brands(self, request):
+        brand_names = request.query_params.get('brands', None)
+        
+        if brand_names:
+            brand_names_list = brand_names.split(',')  # Split brands by comma
+            # Filter products by a list of brands
+            products = Product.objects.filter(brand__name__in=brand_names_list)
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
+        else:
+            return Response({"error": "At least one brand name is required."}, status=400)
 
 class CategoryWiseAllProductsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
@@ -163,6 +391,19 @@ class TypesOfCategoryViewSet(viewsets.ReadOnlyModelViewSet):
         if not types_of_category.exists():
             return Response({"error": "No types found for this category."}, status=404)
         serializer = TypeOFCategorySerializer(types_of_category, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    # Add a custom action to exclude a specific category by its ID
+    @action(detail=False, methods=['get'], url_path=r'exclude/(?P<category_id>\d+)')
+    def exclude_category(self, request, category_id=None):
+        # Exclude the category with the given ID
+        categories = Category.objects.exclude(id=category_id)
+        # Serialize the categories
+        serializer = CategorySerializer(categories, many=True)
         return Response(serializer.data)
 
 class ProductSearchViewSet(viewsets.ViewSet):
@@ -776,125 +1017,7 @@ class OrderCreateAPIView(APIView):
             "message": "Order created successfully."
         }, status=status.HTTP_201_CREATED)
 
-
-class OrderCancelAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, order_id):
-        try:
-            # Fetch the order to be canceled
-            order = Order.objects.get(id=order_id, user=request.user)
-
-            # Check if the order is already canceled or completed
-            if order.status in ['canceled', 'completed']:
-                return Response({
-                    "success": False,
-                    "message": "Order cannot be canceled as it is already processed."
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Serialize and update the order status to "canceled"
-            serializer = OrderSerializer(order, data={}, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response({
-                    "success": True,
-                    "message": "Order canceled successfully.",
-                    "order": serializer.data
-                }, status=status.HTTP_200_OK)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        except Order.DoesNotExist:
-            return Response({
-                "success": False,
-                "message": "Order not found."
-            }, status=status.HTTP_404_NOT_FOUND)
-
-class OrderListView(generics.ListAPIView):
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        # Fetch orders only for the logged-in user
-        return Order.objects.filter(user=self.request.user).order_by('-order_date')
-
-class OrderDetailView(generics.RetrieveAPIView):
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_field = 'id'
-
-    def get_queryset(self):
-        return Order.objects.filter(user=self.request.user)
-
-class CouponApplyAPIView(APIView):
-    """
-    API View to apply a coupon and calculate the discount based on conditions.
-    """
-
-    def post(self, request, *args, **kwargs):
-        code = request.data.get('code')
-        cart_items = request.data.get('cart_items', [])
-
-        if not cart_items:
-            return Response(
-                {"success": False, "message": "No items in cart."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Calculate total amount from cart items
-        total_amount = sum(item['price'] for item in cart_items)
-        is_first_order = not Order.objects.filter(user=request.user).exists()
-        products = [get_object_or_404(Product, id=item['product_id']) for item in cart_items]
-
-        try:
-            # Find the coupon if it exists and is within the valid date range
-            coupon = Coupon.objects.get(code=code, valid_from__lte=timezone.now(), valid_to__gte=timezone.now())
-
-            # Check if the coupon is valid
-            if coupon.is_valid(total_amount, products, is_first_order):
-                discount = 0
-
-                # Calculate discount based on coupon type
-                if coupon.is_percentage:
-                    discount = total_amount * (coupon.discount / 100)
-                else:
-                    discount = coupon.discount
-
-                # Update coupon usage count if needed
-                coupon.used_count += 1
-                coupon.save()
-
-                # Send successful response with discount details
-                return Response({
-                    "success": True,
-                    "discount": discount,
-                    "final_total": total_amount - discount,
-                    "message": f"Coupon '{code}' applied successfully."
-                }, status=status.HTTP_200_OK)
-            else:
-                # Invalid coupon usage for this cart or conditions not met
-                return Response({
-                    "success": False,
-                    "message": "Coupon not valid for cart items or does not meet requirements."
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-        except Coupon.DoesNotExist:
-            # Invalid coupon code
-            return Response({
-                "success": False,
-                "message": "Invalid coupon code."
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-
-class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
-    serializer_class = CustomerSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        # Set the user field to the currently authenticated user
-        serializer.save(user=self.request.user)
-
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+class CategoryMobileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
@@ -942,7 +1065,7 @@ class ProductDetailAPIView(APIView):
         return Response(serializer.data)
 
 # ViewSet for Category
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+class CategoryMobileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]

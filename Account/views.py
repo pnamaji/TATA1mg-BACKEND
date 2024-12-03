@@ -1,5 +1,4 @@
-from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.conf import settings
@@ -30,6 +29,19 @@ twilio_phone_number = config('TWILIO_PHONE_NO')  # Replace with your Twilio phon
 client = Client(account_sid, auth_token)
 
 # Create your views here.
+
+# =============================================== Add Card, Order Product, Add Address, Apply Coupon =============================================================
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Set the user field to the currently authenticated user
+        serializer.save(user=self.request.user)
+
+# ==================================================================
 
 class UpdateMobileNumberSendOTP(APIView):
     permission_classes = [IsAuthenticated]

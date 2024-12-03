@@ -7,13 +7,6 @@ class AdAdmin(admin.ModelAdmin):
     list_display = ('title', 'is_active', 'start_date', 'end_date')
     list_filter = ('is_active', 'start_date', 'end_date')
 
-# ==================== CUSTOMER MODEL ====================
-@admin.register(Customer)
-class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'phone_number', 'city', 'zipcode', 'state')
-    search_fields = ('full_name', 'phone_number', 'city', 'state')
-    list_filter = ('city', 'state')
-
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = ('id', 'name')       # Assuming the field name is 'name' instead of 'tag'

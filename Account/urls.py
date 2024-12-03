@@ -5,10 +5,12 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 
-# router = DefaultRouter()
+router = DefaultRouter()
 # router.register(r'categories', CategoryViewSet, basename='category')
 # router.register(r'brands', BrandViewSet)
 # router.register(r'address', CustomerViewSet)
+router.register(r'address', CustomerViewSet)
+
 
 urlpatterns = [
     path('api/signin/send-otp/', LoginWithSMS.as_view(), name='SignUp'),
@@ -23,7 +25,7 @@ urlpatterns = [
     # Get the User Data for Profile
     path('api/profile/', UserProfileView.as_view(), name='user-profile'),
 
-    # path('', include(router.urls)),
+    path('api/', include(router.urls)),
     # path('categories/<int:category_id>/types/', TypeOfCategoryViewSet.as_view({'get': 'list'}), name='types-of-category-list'),
     # path('categories/<int:category_id>/types/<int:type_of_category_id>/products/', ProductViewSet.as_view({'get': 'list'}), name='products-list'),
 

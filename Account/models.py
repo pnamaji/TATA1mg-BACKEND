@@ -119,6 +119,27 @@ class LoginHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.username} logged in at {self.login_time} and logged out at {self.logout_time or 'N/A'}"
+    
+class Customer(models.Model):
+    CHOICE_TYPE = [
+        ('home', 'Home'),
+        ('office', 'Office'),
+        ('other', 'Other')
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='address')
+    full_name = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=15)  # Changed to CharField
+    address = models.CharField(max_length=255)
+    address_type = models.CharField(max_length=10, choices=CHOICE_TYPE, default="home")
+    custom_address_type = models.CharField(max_length=50, blank=True, null=True)  # Only used if "Other" is selected
+    locality = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100)
+    zipcode = models.CharField(max_length=10)  # Changed to CharField
+    state = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.full_name
 
 class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE) 
@@ -187,11 +208,20 @@ class Order(models.Model):
         self.clean()
         super().save(*args, **kwargs)
 
+class CartItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f'{self.quantity} x {self.product.name} for {self.user.username}'
+
 # Order Item Model (for many-to-many relationship between Order and Product)
 class OrderItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):

@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 
 router = DefaultRouter()
-router.register(r'categories', CategoryViewSet)
+router.register(r'categories', CategoryMobileViewSet, basename='Mobile application category')
 router.register(r'api/categorytypewiseproducts', CategoryTypeProductView, basename='Category Type wise Products')
 router.register(r'api/categorywiseproducts', CategoryProductView, basename='Category Wise Products')
 router.register(r'api/spotlight', SpotlightProductViewSet, basename='Spotlight Product List')
@@ -39,6 +39,7 @@ router.register(r'api/product-details', ProductDetailsViewSet, basename='product
 router.register(r'api/product-information', ProductInformationViewSet, basename='other Information')    # this is url /products/api/other-rating/<int:product_id>/
 
 # Category Wise
+router.register(r'api/categories', CategoryViewSet, basename='category')         # URL for exclude /products/api/categories/exclude/<category_id>/                        you can get this url through type of categories and you can exclude category list
 router.register(r'api/types-of-category', TypesOfCategoryViewSet, basename='types-of-category')     # URL products/api/types-of-category/by-category/<category_id>/ 
 router.register(r'api/brands', CategoryWiseBrandsViewSet, basename='Category Wise Brands')     # URL products/api/brands/by-category/<category_id>/
 router.register(r'api/all-products', CategoryWiseAllProductsViewSet, basename='Category Wise All Products')     # URL products/api/all-products/by-category/5/
@@ -54,12 +55,15 @@ router.register(r'api/category', CategoryViewsHandleViewSet, basename='category-
 router.register(r'api/product', ProductsViewsHandleViewSet, basename='product-handle-views')    # URL products/api/product/<id>/add-view/
 router.register(r'api/tags', TagsViewsHandleViewSet, basename='tags-handle-views')    # URL products/api/tags/<id>/add-view/
 
+# Add Card, Order. address
+router.register(r'api/cart', CartViewSet, basename='cart')
+router.register(r'api/orders', OrderViewSet, basename='orders')
+
 
 
 router.register(r'api/manufacturer', ManufacturerModelViewSet)
 router.register(r'api/brands', BrandViewSet)
 router.register(r'api/country', CountryViewSet)
-router.register(r'address', CustomerViewSet)
 
 from . import views
 

@@ -28,6 +28,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_is_owner(self, obj):
         request = self.context.get('request')
         return obj.user == request.user  # True if the logged-in user is the owner
+    
+class CustomerSerializer(serializers.ModelSerializer):
+    # Make user a read-only field
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = Customer
+        fields = '__all__'  # or specify fields like ['id', 'full_name', 'phone_number', 'address', 'city', 'state', 'zipcode']
+    
+class CartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = ['id', 'product', 'quantity']
 
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:

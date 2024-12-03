@@ -17,32 +17,26 @@ from django.conf import settings
 from django.utils.timezone import now
 from django.core.exceptions import ValidationError
 # from phonenumber_field.modelfields import PhoneNumberField
-from django.contrib.auth.models import User, BaseUserManager, AbstractBaseUser
-
-
-class Customer(models.Model):
-    CHOICE_TYPE = [
-        ('home', 'Home'),
-        ('office', 'Office'),
-        ('other', 'Other')
-    ]
-    
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer')
-    full_name = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=15)  # Changed to CharField
-    address = models.CharField(max_length=255)
-    address_type = models.CharField(max_length=10, choices=CHOICE_TYPE, default="home")
-    custom_address_type = models.CharField(max_length=50, blank=True, null=True)  # Only used if "Other" is selected
-    locality = models.CharField(max_length=255, blank=True, null=True)
-    city = models.CharField(max_length=100)
-    zipcode = models.CharField(max_length=10)  # Changed to CharField
-    state = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.full_name
+from django.contrib.auth.models import User
     
 class Tag(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    views = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.name
+    
+def file_upload_to_brand(instance, filename):
+    return f'Brand/{filename}'
+    
+class Brand(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    # category = models.ManyToManyField(Category, related_name='brand')
+    # typeofcategory = models.ManyToManyField(TypesOfCategory, related_name='brand')
+    address = models.TextField(blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    tags = models.ManyToManyField(Tag, related_name='brands_tags')
+    img = models.ImageField(upload_to=file_upload_to_brand, null=True, blank=True)
     views = models.IntegerField(default=0)
 
     def __str__(self):
@@ -51,27 +45,31 @@ class Tag(models.Model):
 def file_upload_to_category(instance, filename):
     return f'Category/{filename}'
 
-class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True, null=True)
-    tags = models.ManyToManyField(Tag, related_name='categories')
-    img = models.ImageField(upload_to=file_upload_to_category, blank=True, null=True)
-    views = models.IntegerField(default=0)
-    
 
-    def __str__(self):
-        return self.name
     
 def file_upload_to_categorytype(instance, filename):
     return f'TypeOfCategory/{filename}'
     
 class TypesOfCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    category = models.ManyToManyField(Category, related_name='types_of_category')
+    # category = models.CharField(Category, related_name='types_of_category')
+    brand = models.ManyToManyField(Brand, related_name='types_of_category')
     tags = models.ManyToManyField(Tag, related_name='types_of_category')
     description = models.TextField(blank=True, null=True)
     img = models.ImageField(upload_to=file_upload_to_categorytype, blank=True, null=True)
     views = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.name
+    
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+    tags = models.ManyToManyField(Tag, related_name='categories')
+    img = models.ImageField(upload_to=file_upload_to_category, blank=True, null=True)
+    views = models.IntegerField(default=0)
+    subcategory = models.ManyToManyField(TypesOfCategory, related_name='category')
+    brand = models.ManyToManyField(Brand, related_name='category')
 
     def __str__(self):
         return self.name
@@ -101,9 +99,6 @@ class Ad(models.Model):
 
     def __str__(self):
         return self.title
-    
-def file_upload_to_brand(instance, filename):
-    return f'Brand/{filename}'
 
 class Country(models.Model):
     name = models.CharField(max_length=100)
@@ -121,19 +116,6 @@ class Manufacturer(models.Model):
 class Marketer(models.Model):
     name = models.CharField(max_length=255)
     address = models.TextField()
-
-    def __str__(self):
-        return self.name
-    
-class Brand(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    category = models.ManyToManyField(Category, related_name='brand')
-    typeofcategory = models.ManyToManyField(TypesOfCategory, related_name='brand')
-    address = models.TextField(blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
-    tags = models.ManyToManyField(Tag, related_name='brands_tags')
-    img = models.ImageField(upload_to=file_upload_to_brand, null=True, blank=True)
-    views = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
