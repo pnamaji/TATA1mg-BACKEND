@@ -39,21 +39,21 @@ class TypeOFCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'img', 'views', 'ad', 'brand', 'tags']
 
     def get_ad(self, obj):
-        if not obj.ad or not hasattr(obj.ad, 'values'):  # Check if 'ad' exists and supports '.values()'
-            return []
+        # Initialize 'ads' as an empty list
+        ads = []
 
-        try:
-            ads = obj.ad.values('id', 'title', 'img', 'link')  # Query related ads
-        except AttributeError:
-            return []  # Return an empty list if 'values' raises an error
+        # Check if the related 'ad' exists
+        if obj.ad.exists():  # Ensures there are related ads before accessing
+            ads = obj.ad.values('id', 'title', 'img', 'link')
 
+        # Add absolute URLs to the 'img' field for all ads
         request = self.context.get('request')  # Get the request context
-        if request:  # Ensure request context exists
+        if request:  # Ensure request exists
             for ad in ads:
-                if ad.get('img'):  # Check if the 'img' field is present and not empty
-                    # Build absolute URL for the image
+                if ad.get('img'):  # Safely check if 'img' exists
                     ad['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), ad['img'])
-        return ads  # Return the modified ads list
+        
+        return ads  # Return the list of ads
         
     def get_brand(self, obj):
         # Return only 'id', 'name', and a properly formatted 'img' URL for each brand
@@ -79,13 +79,21 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'img', 'views', 'ad', 'tags', 'brand', 'subcategory']
 
     def get_ad(self, obj):
-        # Return only 'id' and 'name' for each brand
-        ads = obj.ad.values('id', 'title', 'img', 'link')
-        request = self.context.get('request')
-        for ad in ads:
-            if ad['img']:  # Check if the image field exists
-                ad['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), ad['img'])
-        return ad
+        # Initialize 'ads' as an empty list
+        ads = []
+
+        # Check if the related 'ad' exists
+        if obj.ad.exists():  # Ensures there are related ads before accessing
+            ads = obj.ad.values('id', 'title', 'img', 'link')
+
+        # Add absolute URLs to the 'img' field for all ads
+        request = self.context.get('request')  # Get the request context
+        if request:  # Ensure request exists
+            for ad in ads:
+                if ad.get('img'):  # Safely check if 'img' exists
+                    ad['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), ad['img'])
+        
+        return ads  # Return the list of ads
 
     def get_subcategory(self, obj):
         request = self.context.get('request')  # Get the request object from the context
