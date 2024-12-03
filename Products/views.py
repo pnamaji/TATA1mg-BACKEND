@@ -406,7 +406,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
         # Exclude the category with the given ID
         categories = Category.objects.exclude(id=category_id)
         # Serialize the categories
-        serializer = CategorySerializer(categories, many=True)
+        serializer = CategorySerializer(categories, many=True, context={'request': request})
         return Response(serializer.data)
 
 class ProductSearchViewSet(viewsets.ViewSet):

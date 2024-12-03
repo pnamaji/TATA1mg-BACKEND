@@ -13,9 +13,12 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
         fields = ['id', 'name', 'views']
 
+class AdSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ad
+        fields = '__all__'
+
 class BrandSerializer(serializers.ModelSerializer):
-    # country_of_origin = CountrySerializer()
-    # img = serializers.ImageField(use_url=True)
     tags = serializers.SerializerMethodField()
 
     class Meta:
@@ -26,19 +29,23 @@ class BrandSerializer(serializers.ModelSerializer):
         # Return only 'id' and 'name' for each brand
         return obj.tags.values('id', 'name')
 
-    # def get_img_url(self, obj):
-    #     request = self.context.get('request')
-    #     if obj.img:  # Ensure the image is associated
-    #         return request.build_absolute_uri(obj.img.url)
-    #     return None  # Return None if no image exists
-
 class TypeOFCategorySerializer(serializers.ModelSerializer):
     brand = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
+    ad = serializers.SerializerMethodField()
 
     class Meta:
         model = TypesOfCategory
-        fields = ['id', 'name', 'description', 'img', 'views', 'brand', 'tags']
+        fields = ['id', 'name', 'description', 'img', 'views', 'ad', 'brand', 'tags']
+
+    def get_ad(self, obj):
+        # Return only 'id' and 'name' for each brand
+        ads = obj.ad.values('id', 'title', 'img', 'link')
+        request = self.context.get('request')
+        for ad in ads:
+            if ad['img']:  # Check if the image field exists
+                ad['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), ad['img'])
+        return ad
 
     def get_brand(self, obj):
         # Return only 'id', 'name', and a properly formatted 'img' URL for each brand
@@ -57,10 +64,20 @@ class CategorySerializer(serializers.ModelSerializer):
     brand = serializers.SerializerMethodField()  # Custom field logic for brands
     subcategory = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
+    ad = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'description', 'img', 'views', 'tags', 'brand', 'subcategory']
+        fields = ['id', 'name', 'description', 'img', 'views', 'ad', 'tags', 'brand', 'subcategory']
+
+    def get_ad(self, obj):
+        # Return only 'id' and 'name' for each brand
+        ads = obj.ad.values('id', 'title', 'img', 'link')
+        request = self.context.get('request')
+        for ad in ads:
+            if ad['img']:  # Check if the image field exists
+                ad['img'] = urljoin(request.build_absolute_uri(settings.MEDIA_URL), ad['img'])
+        return ad
 
     def get_subcategory(self, obj):
         request = self.context.get('request')  # Get the request object from the context

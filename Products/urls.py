@@ -6,6 +6,9 @@ from rest_framework.routers import DefaultRouter
 
 
 router = DefaultRouter()
+
+# ====================================================== Home Page API's ====================================================================================
+
 router.register(r'categories', CategoryMobileViewSet, basename='Mobile application category')
 router.register(r'api/categorytypewiseproducts', CategoryTypeProductView, basename='Category Type wise Products')
 router.register(r'api/categorywiseproducts', CategoryProductView, basename='Category Wise Products')
@@ -30,7 +33,8 @@ router.register(r'api/homeopathy-womens-health', HomeopathyWomensHealthProductsL
 router.register(r'api/minimum-33-off-products', Minimum33PercentOffProductsList, basename="Minimum 33 or more percent off Products")
 router.register(r'api', ProductSearchViewSet, basename='product-search')            # URL IS products/api/search/?q=<input>
 
-# Specific products API's
+# ======================================================= Specific products API's =====================================================================
+
 router.register(r'api/products', ProductModelViewSet)
 router.register(r'api/product-images', ProductImageViewSet, basename='product-image')
 router.register(r'api/product-highlights', ProductHighlightViewSet, basename='product-Highlights')
@@ -38,24 +42,28 @@ router.register(r'api/product-rating', ReviewViewSet, basename='product Rating')
 router.register(r'api/product-details', ProductDetailsViewSet, basename='product details')    # this is url /products/api/product-details/<int:product_id>/
 router.register(r'api/product-information', ProductInformationViewSet, basename='other Information')    # this is url /products/api/other-rating/<int:product_id>/
 
-# Category Wise
+# ============================================================= Category Wise ==================================================================================
+
 router.register(r'api/categories', CategoryViewSet, basename='category')         # URL for exclude /products/api/categories/exclude/<category_id>/                        you can get this url through type of categories and you can exclude category list
 router.register(r'api/brands', CategoryWiseBrandsViewSet, basename='Category Wise Brands')     # URL products/api/brands/by-category/<category_id>/
 router.register(r'api/all-products', CategoryWiseAllProductsViewSet, basename='Category Wise All Products')     # URL products/api/all-products/by-category/5/
 
-# Type of Category wise
+# ==========================================================Type of Category wise ==================================================================================
+
 router.register(r'api/types-of-categories', TypesOfCategoryViewSet, basename='types of category brands')         # URL for exclude /products/api/types-of-categories/exclude/<category_id>/                        you can get this url through type of categories and you can exclude category list
 router.register(r'api/all-products', TypesOfCategoryWiseAllProductsViewSet, basename='Types of Category Wise All Products')     # URL products/api/all-products/by-types-of-category/5/
 router.register(r'api/brands', TypeOfCategoryWiseBrandsViewSet, basename='Type of Category Wise Brands')     # URL products/api/brands/by-types-of-category/<category_id>/
 router.register(r'api/products', BrandWiseProductsViewSet, basename='Brand wise Products')          #  URL products/api/products/by-brand/<brand_id>/
 
-# Handle Views Count
+# =========================================================== Handle Views Count ====================================================================================
+
 router.register(r'api/types-of-category', TypesOfCategoryViewsHandleViewSet, basename='types-of-category-handle-views')    # URL products/api/types-of-category/<id>/add-view/
 router.register(r'api/category', CategoryViewsHandleViewSet, basename='category-handle-views')    # URL products/api/category/<id>/add-view/
 router.register(r'api/product', ProductsViewsHandleViewSet, basename='product-handle-views')    # URL products/api/product/<id>/add-view/
 router.register(r'api/tags', TagsViewsHandleViewSet, basename='tags-handle-views')    # URL products/api/tags/<id>/add-view/
 
-# Add Card, Order. address
+# ========================================================== Add Card, Order. address ===================================================================================
+
 router.register(r'api/cart', CartViewSet, basename='cart')
 router.register(r'api/orders', OrderViewSet, basename='orders')
 
