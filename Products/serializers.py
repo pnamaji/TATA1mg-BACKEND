@@ -135,7 +135,10 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.tags.values('id', 'name')
     
     def get_marketer(self, obj):
-        return obj.marketer.values('id', 'name')
+        marketer = obj.marketer  # Single Marketer object
+        if marketer:
+            return {'id': marketer.id,'name': marketer.name}
+        return None  # Return None if no marketer is associated
     
     def get_category(self, obj):
         # Return only 'id' and 'name' for each brand
