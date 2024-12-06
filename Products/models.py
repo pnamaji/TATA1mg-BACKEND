@@ -325,23 +325,6 @@ class ProductInformation(models.Model):
     def __str__(self):
         return f"ProductInformation for {self.product.name if self.product else 'Unknown Product'}"
 
-class Coupon(models.Model):
-    code = models.CharField(max_length=50, unique=True)
-    discount = models.DecimalField(max_digits=5, decimal_places=2)
-    is_percentage = models.BooleanField(default=False)
-    valid_from = models.DateTimeField()
-    valid_to = models.DateTimeField()
-    used_count = models.IntegerField(default=0)
-
-    def is_valid(self, total_price, cart_items, is_first_order):
-        # Check validity conditions here
-        return self.valid_from <= timezone.now() <= self.valid_to
-
-    def apply_discount(self, total_price):
-        if self.is_percentage:
-            return total_price * (self.discount / 100)
-        return self.discount
-
 # Review Model
 class Review(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)

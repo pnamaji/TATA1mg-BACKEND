@@ -3,10 +3,13 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from datetime import timedelta
+from datetime import datetime  # Correct import
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken, BlacklistedToken, AccessToken
 from rest_framework.permissions import AllowAny
@@ -16,6 +19,7 @@ from rest_framework.views import APIView
 from twilio.rest import Client
 import json, random, string, logging
 from .models import UserData, LoginHistory
+# from Products.models import Product
 from Account.serializers import *
 from decouple import config
 import logging
@@ -40,6 +44,154 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Set the user field to the currently authenticated user
         serializer.save(user=self.request.user)
+
+class CouponApplyViewSet(viewsets.ViewSet):
+    """
+    ViewSet for handling Coupon-related operations.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'], url_path='apply')
+    def apply_coupon(self, request):
+        print("POST request received for applying coupon")  # Debug line
+
+        serializer = ApplyCouponSerializer(data=request.data)
+        if serializer.is_valid():
+            coupon_code = serializer.validated_data['coupon_code']
+            user = request.user
+            cart_items = CartItem.objects.filter(user=user)
+
+            # Check if the coupon exists and is valid
+            try:
+                coupon = Coupon.objects.get(code=coupon_code)
+            except Coupon.DoesNotExist:
+                return Response(
+                    {"success": False, "message": "Invalid coupon code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Check coupon expiration
+            if coupon.expiration_date and coupon.expiration_date < timezone.now():
+                return Response(
+                    {"success": False, "message": "This coupon has expired."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Ensure the list only contains valid product IDs (non-empty and valid integers)
+            # Ensure the list only contains valid product IDs (non-empty and valid integers)
+            product_ids = cart_items.values_list('product_id', flat=True)
+            valid_product_ids = [product_id for product_id in product_ids if product_id]  # Remove empty strings
+
+            # Now filter products based on valid IDs
+            if valid_product_ids:
+                applicable_products = Product.objects.filter(id__in=valid_product_ids)
+            else:
+                return Response(
+                    {"success": False, "message": "No valid products found in the cart."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not applicable_products.exists():
+                return Response(
+                    {"success": False, "message": "This coupon is not valid for the selected products."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Calculate total discount
+            cart_total = sum(product.selling_price for product in applicable_products)
+            discount = coupon.get_discount(cart_total)
+            discounted_total = cart_total - discount
+
+            return Response(
+                {
+                    "success": True,
+                    "discount": discount,
+                    "discounted_total": discounted_total,
+                    "message": "Coupon applied successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# class CouponApplyAPIView(APIView):
+#     """
+#     API View to apply a coupon and calculate the discount based on conditions.
+#     """
+
+#     def post(self, request, *args, **kwargs):
+#         code = request.data.get('code')
+#         cart_items = request.data.get('cart_items', [])
+
+#         if not cart_items:
+#             return Response(
+#                 {"success": False, "message": "No items in cart."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # Calculate total amount from cart items
+#         total_amount = sum(item['price'] for item in cart_items)
+#         is_first_order = not Order.objects.filter(user=request.user).exists()
+#         products = [get_object_or_404(Product, id=item['product_id']) for item in cart_items]
+
+#         try:
+#             # Find the coupon if it exists and is within the valid date range
+#             coupon = Coupon.objects.get(code=code, valid_from__lte=timezone.now(), valid_to__gte=timezone.now())
+
+#             # Check if the coupon is valid
+#             if coupon.is_valid(total_amount, products, is_first_order):
+#                 discount = 0
+
+#                 # Calculate discount based on coupon type
+#                 if coupon.is_percentage:
+#                     discount = total_amount * (coupon.discount / 100)
+#                 else:
+#                     discount = coupon.discount
+
+#                 # Update coupon usage count if needed
+#                 coupon.used_count += 1
+#                 coupon.save()
+
+#                 # Send successful response with discount details
+#                 return Response({
+#                     "success": True,
+#                     "discount": discount,
+#                     "final_total": total_amount - discount,
+#                     "message": f"Coupon '{code}' applied successfully."
+#                 }, status=status.HTTP_200_OK)
+#             else:
+#                 # Invalid coupon usage for this cart or conditions not met
+#                 return Response({
+#                     "success": False,
+#                     "message": "Coupon not valid for cart items or does not meet requirements."
+#                 }, status=status.HTTP_400_BAD_REQUEST)
+
+#         except Coupon.DoesNotExist:
+#             # Invalid coupon code
+#             return Response({
+#                 "success": False,
+#                 "message": "Invalid coupon code."
+#             }, status=status.HTTP_404_NOT_FOUND)
+
+class CouponViewSet(viewsets.ModelViewSet):
+    queryset = Coupon.objects.all()
+    serializer_class = CouponSerializer
+    permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
+
+    def get_queryset(self):
+        """
+        Optionally filter the coupons by code or expiration date
+        """
+        queryset = self.queryset
+        code = self.request.query_params.get('code', None)
+        expiration_date = self.request.query_params.get('expiration_date', None)
+
+        if code:
+            queryset = queryset.filter(code__icontains=code)
+        if expiration_date:
+            queryset = queryset.filter(expiration_date__lte=expiration_date)
+
+        return queryset
 
 # ==================================================================
 

@@ -89,11 +89,8 @@ urlpatterns = [
     # Get SKU to all data of product
     path('api/products/<str:sku>/', ProductDetailAPIView.as_view(), name='Product Details API View'),
 
-    # Coupon URL
-    path('api/apply-coupon/', CouponApplyAPIView.as_view(), name='apply_coupon_api'),
-
     # Order Products
-    path('api/create-order/', OrderCreateAPIView.as_view(), name='create_order_api'),
+    # path('api/create-order/', OrderCreateAPIView.as_view(), name='create_order_api'),
 
     path('api/<int:product_id>/upload-image/', ProductImageUploadView.as_view(), name='upload-product-image'),
 

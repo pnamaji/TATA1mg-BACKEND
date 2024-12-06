@@ -15,7 +15,7 @@ from django.conf import settings
 from django.utils.timezone import now
 # from phonenumber_field.modelfields import PhoneNumberField
 from django.contrib.auth.models import User, BaseUserManager, AbstractBaseUser
-from Products.models import Product
+from Products.models import Product, Brand
 
 class MyUserManager(BaseUserManager):
     def create_user(self, mobile_number, email):
@@ -133,7 +133,7 @@ class Customer(models.Model):
     address = models.CharField(max_length=255)
     address_type = models.CharField(max_length=10, choices=CHOICE_TYPE, default="home")
     custom_address_type = models.CharField(max_length=50, blank=True, null=True)  # Only used if "Other" is selected
-    locality = models.CharField(max_length=255, blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100)
     zipcode = models.CharField(max_length=10)  # Changed to CharField
     state = models.CharField(max_length=100)
@@ -215,17 +215,80 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f'{self.quantity} x {self.product.name} for {self.user.username}'
+    
+class Coupon(models.Model):
+    # Available types of discounts
+    DISCOUNT_TYPE_CHOICES = [
+        ('percentage', 'Percentage'),
+        ('fixed', 'Fixed'),
+    ]
+    
+    # Basic Coupon Details
+    brand = models.ForeignKey(Brand, related_name='coupon', on_delete=models.CASCADE)
+    code = models.CharField(max_length=50, unique=True)
+    description = models.TextField(help_text="Description of the coupon.")
+    discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES)
+    discount_value = models.DecimalField(max_digits=10, decimal_places=2)
+    max_discount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # for percentage-based discounts
+    min_cart_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    applicable_brands = models.TextField(null=True, blank=True)  # Brands that the coupon applies to (comma-separated)
+    applicable_products = models.TextField(null=True, blank=True)  # Products the coupon applies to
+    additional_discount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    expiration_date = models.DateTimeField(null=True, blank=True)
+    terms_and_conditions = models.TextField()
+
+    def __str__(self):
+        return self.code
+
+    def is_valid(self):
+        # Check if the coupon is expired and meets the conditions
+        if self.expiration_date and self.expiration_date < timezone.now():
+            return False
+        return True
+
+    def get_discount(self, order_total):
+        """
+        Calculate the discount for an order based on the coupon type.
+        """
+        if self.discount_type == 'percentage':
+            discount = order_total * (self.discount_value / 100)
+            if self.max_discount:
+                discount = min(discount, self.max_discount)
+        elif self.discount_type == 'fixed':
+            discount = self.discount_value
+        else:
+            discount = 0
+
+        if self.additional_discount:
+            discount += self.additional_discount
+
+        return discount
+
 
 # Order Item Model (for many-to-many relationship between Order and Product)
 class OrderItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    coupon = models.ForeignKey(Coupon, related_name='order_item', on_delete=models.SET_NULL, null=True, blank=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return f'{self.product.name} in order {self.order.id}'
+    
+    def apply_coupon(self):
+        if self.coupon and self.coupon.is_valid():
+            # Apply the discount based on coupon type
+            if self.coupon.discount_type == 'percentage':
+                discount = self.total_amount * (self.coupon.discount_value / 100)
+                if self.coupon.max_discount:
+                    discount = min(discount, self.coupon.max_discount)
+                self.total_amount -= discount
+            elif self.coupon.discount_type == 'fixed':
+                self.total_amount -= self.coupon.discount_value
+            return self.total_amount
+        return self.total_amount
     
     
 # Prescription Model
