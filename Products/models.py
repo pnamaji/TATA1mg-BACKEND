@@ -59,9 +59,10 @@ class Brand(models.Model):
     # typeofcategory = models.ManyToManyField(TypesOfCategory, related_name='brand')
     address = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
-    tags = models.ManyToManyField(Tag, related_name='brands_tags')
+    tags = models.ManyToManyField(Tag, related_name='brands_tags', blank=True)
     img = models.ImageField(upload_to=file_upload_to_brand, null=True, blank=True)
     views = models.IntegerField(default=0)
+    ad = models.ManyToManyField(Ad, related_name='brand', blank=True)
 
     def __str__(self):
         return self.name
@@ -77,12 +78,12 @@ def file_upload_to_categorytype(instance, filename):
 class TypesOfCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
     # category = models.CharField(Category, related_name='types_of_category')
-    brand = models.ManyToManyField(Brand, related_name='types_of_category')
+    brand = models.ManyToManyField(Brand, related_name='types_of_category', blank=True)
     tags = models.ManyToManyField(Tag, related_name='types_of_category')
     description = models.TextField(blank=True, null=True)
     img = models.ImageField(upload_to=file_upload_to_categorytype, blank=True, null=True)
     views = models.IntegerField(default=0)
-    ad = models.ManyToManyField(Ad, related_name='types_of_category', blank=True, null=True)
+    ad = models.ManyToManyField(Ad, related_name='types_of_category', blank=True)
 
     def __str__(self):
         return self.name
@@ -93,9 +94,9 @@ class Category(models.Model):
     tags = models.ManyToManyField(Tag, related_name='categories')
     img = models.ImageField(upload_to=file_upload_to_category, blank=True, null=True)
     views = models.IntegerField(default=0)
-    subcategory = models.ManyToManyField(TypesOfCategory, related_name='category')
-    brand = models.ManyToManyField(Brand, related_name='category')
-    ad = models.ManyToManyField(Ad, related_name='categories', blank=True, null=True)
+    subcategory = models.ManyToManyField(TypesOfCategory, related_name='category', blank=True)
+    brand = models.ManyToManyField(Brand, related_name='category', blank=True)
+    ad = models.ManyToManyField(Ad, related_name='categories', blank=True)
 
     def __str__(self):
         return self.name
