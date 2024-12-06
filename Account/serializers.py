@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from Account.models import *
+from Products.models import Brand
+from urllib.parse import urljoin
 
 class UserDataSerializer(serializers.ModelSerializer):
     joined_date = serializers.DateTimeField(source='user.date_joined', read_only=True)
@@ -41,6 +43,23 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ['id', 'product', 'quantity']
+
+# This Serializer for just Coupon
+class BrandSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Brand
+        fields = ['id', 'name', 'img']
+
+class CouponSerializer(serializers.ModelSerializer):
+    brand = BrandSerializer(read_only=True)
+
+    class Meta:
+        model = Coupon
+        fields = ['id', 'code', 'description', 'discount_type', 'discount_value', 'max_discount', 'min_cart_value', 'applicable_brands', 'applicable_products', 'additional_discount', 'expiration_date', 'terms_and_conditions', 'brand']
+
+class ApplyCouponSerializer(serializers.Serializer):
+    coupon_code = serializers.CharField()
 
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:

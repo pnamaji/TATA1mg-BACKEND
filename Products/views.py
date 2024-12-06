@@ -175,65 +175,6 @@ class OrderDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
 
-class CouponApplyAPIView(APIView):
-    """
-    API View to apply a coupon and calculate the discount based on conditions.
-    """
-
-    def post(self, request, *args, **kwargs):
-        code = request.data.get('code')
-        cart_items = request.data.get('cart_items', [])
-
-        if not cart_items:
-            return Response(
-                {"success": False, "message": "No items in cart."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Calculate total amount from cart items
-        total_amount = sum(item['price'] for item in cart_items)
-        is_first_order = not Order.objects.filter(user=request.user).exists()
-        products = [get_object_or_404(Product, id=item['product_id']) for item in cart_items]
-
-        try:
-            # Find the coupon if it exists and is within the valid date range
-            coupon = Coupon.objects.get(code=code, valid_from__lte=timezone.now(), valid_to__gte=timezone.now())
-
-            # Check if the coupon is valid
-            if coupon.is_valid(total_amount, products, is_first_order):
-                discount = 0
-
-                # Calculate discount based on coupon type
-                if coupon.is_percentage:
-                    discount = total_amount * (coupon.discount / 100)
-                else:
-                    discount = coupon.discount
-
-                # Update coupon usage count if needed
-                coupon.used_count += 1
-                coupon.save()
-
-                # Send successful response with discount details
-                return Response({
-                    "success": True,
-                    "discount": discount,
-                    "final_total": total_amount - discount,
-                    "message": f"Coupon '{code}' applied successfully."
-                }, status=status.HTTP_200_OK)
-            else:
-                # Invalid coupon usage for this cart or conditions not met
-                return Response({
-                    "success": False,
-                    "message": "Coupon not valid for cart items or does not meet requirements."
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-        except Coupon.DoesNotExist:
-            # Invalid coupon code
-            return Response({
-                "success": False,
-                "message": "Invalid coupon code."
-            }, status=status.HTTP_404_NOT_FOUND)
-
 #========================================================== Views Implementing handle ============================================================================
 
 class TagsViewsHandleViewSet(viewsets.ReadOnlyModelViewSet):
@@ -953,72 +894,72 @@ class CategoryTypeProductView(viewsets.ReadOnlyModelViewSet):
 #         }, status=status.HTTP_201_CREATED)
 
 
-class OrderCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+# class OrderCreateAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        user = request.user
-        cart_items = request.data.get('cart_items', [])
-        coupon_code = request.data.get('coupon_code', None)
-        shipping_address = request.data.get('shipping_address', '')
+#     def post(self, request):
+#         user = request.user
+#         cart_items = request.data.get('cart_items', [])
+#         coupon_code = request.data.get('coupon_code', None)
+#         shipping_address = request.data.get('shipping_address', '')
 
-        if not cart_items:
-            return Response({"success": False, "message": "No items in cart."}, status=status.HTTP_400_BAD_REQUEST)
+#         if not cart_items:
+#             return Response({"success": False, "message": "No items in cart."}, status=status.HTTP_400_BAD_REQUEST)
 
-        total_price = 0
-        order = Order.objects.create(
-            user=user, total_price=0, shipping_address=shipping_address, status='pending'
-        )
+#         total_price = 0
+#         order = Order.objects.create(
+#             user=user, total_price=0, shipping_address=shipping_address, status='pending'
+#         )
 
-        # Create OrderItems
-        for item in cart_items:
-            try:
-                product = Product.objects.get(id=item['product_id'])
-                quantity = item['quantity']
+#         # Create OrderItems
+#         for item in cart_items:
+#             try:
+#                 product = Product.objects.get(id=item['product_id'])
+#                 quantity = item['quantity']
 
-                # Use `discounted_price` if available; otherwise, fallback to `selling_price`
-                product_price = product.discounted_price if product.discounted_price else product.selling_price
-                item_total_price = product_price * quantity
-                total_price += item_total_price
+#                 # Use `discounted_price` if available; otherwise, fallback to `selling_price`
+#                 product_price = product.discounted_price if product.discounted_price else product.selling_price
+#                 item_total_price = product_price * quantity
+#                 total_price += item_total_price
 
-                OrderItem.objects.create(order=order, product=product, quantity=quantity, price=item_total_price)
-            except Product.DoesNotExist:
-                return Response({
-                    "success": False,
-                    "message": f"Product ID {item['product_id']} not found."
-                }, status=status.HTTP_404_NOT_FOUND)
+#                 OrderItem.objects.create(order=order, product=product, quantity=quantity, price=item_total_price)
+#             except Product.DoesNotExist:
+#                 return Response({
+#                     "success": False,
+#                     "message": f"Product ID {item['product_id']} not found."
+#                 }, status=status.HTTP_404_NOT_FOUND)
 
-        discount = 0
-        if coupon_code:
-            try:
-                coupon = Coupon.objects.get(code=coupon_code)
-                if coupon.is_valid(total_price, cart_items, is_first_order=not Order.objects.filter(user=user).exists()):
-                    discount = coupon.apply_discount(total_price)
-                    order.total_price = total_price - discount
-                    coupon.used_count += 1
-                    coupon.save()
-                else:
-                    return Response({
-                        "success": False,
-                        "message": "Coupon conditions not met."
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            except Coupon.DoesNotExist:
-                return Response({
-                    "success": False,
-                    "message": "Invalid coupon code."
-                }, status=status.HTTP_404_NOT_FOUND)
-        else:
-            order.total_price = total_price
+#         discount = 0
+#         if coupon_code:
+#             try:
+#                 coupon = Coupons.objects.get(code=coupon_code)
+#                 if coupon.is_valid(total_price, cart_items, is_first_order=not Order.objects.filter(user=user).exists()):
+#                     discount = coupon.apply_discount(total_price)
+#                     order.total_price = total_price - discount
+#                     coupon.used_count += 1
+#                     coupon.save()
+#                 else:
+#                     return Response({
+#                         "success": False,
+#                         "message": "Coupon conditions not met."
+#                     }, status=status.HTTP_400_BAD_REQUEST)
+#             except Coupons.DoesNotExist:
+#                 return Response({
+#                     "success": False,
+#                     "message": "Invalid coupon code."
+#                 }, status=status.HTTP_404_NOT_FOUND)
+#         else:
+#             order.total_price = total_price
 
-        order.save()
-        return Response({
-            "success": True,
-            "order_id": order.id,
-            "total_price": total_price,
-            "discount": discount,
-            "final_total": order.total_price,
-            "message": "Order created successfully."
-        }, status=status.HTTP_201_CREATED)
+#         order.save()
+#         return Response({
+#             "success": True,
+#             "order_id": order.id,
+#             "total_price": total_price,
+#             "discount": discount,
+#             "final_total": order.total_price,
+#             "message": "Order created successfully."
+#         }, status=status.HTTP_201_CREATED)
 
 class CategoryMobileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()

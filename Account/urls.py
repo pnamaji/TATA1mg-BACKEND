@@ -6,13 +6,15 @@ from rest_framework.routers import DefaultRouter
 
 
 router = DefaultRouter()
-# router.register(r'categories', CategoryViewSet, basename='category')
-# router.register(r'brands', BrandViewSet)
-# router.register(r'address', CustomerViewSet)
 router.register(r'address', CustomerViewSet)
+router.register(r'coupons', CouponViewSet, basename='get coupon list')
+router.register(r'coupons-for', CouponApplyViewSet, basename='Apply coupon')  # URL account/coupons/apply/     
+# router.register(r'apply-coupon', CouponApplyViewSet, basename='apply-coupon')
 
 
 urlpatterns = [
+    path('api/', include(router.urls)),
+
     path('api/signin/send-otp/', LoginWithSMS.as_view(), name='SignUp'),
     path('api/signin/resend-otp/', ResendOTPForSMS.as_view(), name='resend-otp'),
     path('api/signin/verify-otp/', VerifyOTPForSMS.as_view(), name='verify-otp'),
@@ -25,7 +27,6 @@ urlpatterns = [
     # Get the User Data for Profile
     path('api/profile/', UserProfileView.as_view(), name='user-profile'),
 
-    path('api/', include(router.urls)),
     # path('categories/<int:category_id>/types/', TypeOfCategoryViewSet.as_view({'get': 'list'}), name='types-of-category-list'),
     # path('categories/<int:category_id>/types/<int:type_of_category_id>/products/', ProductViewSet.as_view({'get': 'list'}), name='products-list'),
 

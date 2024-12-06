@@ -53,3 +53,18 @@ class CustomerAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'phone_number', 'city', 'zipcode', 'state')
     search_fields = ('full_name', 'phone_number', 'city', 'state')
     list_filter = ('city', 'state')
+
+# ==================== COUPON MODEL ====================
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ('code', 'description', 'discount_type', 'discount_value', 'max_discount', 'min_cart_value', 'expiration_date', 'is_valid')
+    search_fields = ('code', 'description')
+    list_filter = ('discount_type', 'expiration_date')
+    ordering = ('-expiration_date',)
+    readonly_fields = ('is_valid',)
+
+    def is_valid(self, obj):
+        return obj.is_valid()
+    is_valid.boolean = True
+    is_valid.short_description = 'Valid'
+
+admin.site.register(Coupon, CouponAdmin)

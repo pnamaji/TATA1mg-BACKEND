@@ -13,21 +13,6 @@ class TagAdmin(admin.ModelAdmin):
     search_fields = ('name',)           # Add a comma to make it a tuple
     list_filter = ('id', 'name')        # Ensure 'name' is the correct field
 
-
-# ==================== COUPON MODEL ====================
-@admin.register(Coupon)
-class CouponAdmin(admin.ModelAdmin):
-    list_display = ('code', 'discount', 'is_percentage', 'valid_from', 'valid_to', 'used_count')
-    list_filter = ('is_percentage', 'valid_from', 'valid_to')
-    search_fields = ('code',)
-    ordering = ('-valid_from',)
-    readonly_fields = ('used_count',)
-
-    def get_readonly_fields(self, request, obj=None):
-        """Make 'code' field read-only after creation."""
-        if obj:
-            return self.readonly_fields + ('code',)
-        return self.readonly_fields
 # ==================== CATEGORY MODEL ====================
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
